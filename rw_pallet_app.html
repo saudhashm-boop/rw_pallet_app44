@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام إدارة مخزن الخشب - احترافي</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', 'Helvetica Neue', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 15px;
+        }
+        
+        .container {
+            max-width: 700px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 25px;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.3);
+            overflow: hidden;
+            animation: slideUp 0.5s ease;
+        }
+        
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px 20px;
+            text-align: center;
+            position: relative;
+        }
+        
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+        }
+        
+        .header h1 {
+            font-size: 32px;
+            margin-bottom: 5px;
+            position: relative;
+            z-index: 1;
+            font-weight: 700;
+        }
+        
+        .header p {
+            font-size: 13px;
+            opacity: 0.95;
+            position: relative;
+            z-index: 1;
+            letter-spacing: 0.5px;
+        }
+        
+        .tabs-icons {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            padding: 25px 15px;
+            background: #f8f9fa;
+            gap: 12px;
+            border-bottom: 2px solid #667eea;
+        }
+        
+        .icon-btn {
+            padding: 16px;
+            border: 2px solid #e0e0e0;
+            background: white;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            font-size: 11px;
+            font-weight: 700;
+            color: #555;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .icon-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            transition: left 0.3s ease;
+            z-index: -1;
+        }
+        
+        .icon-btn:hover {
+            border-color: #667eea;
+            transform: translateY(-2px);
+        }
+        
+        .icon-btn.active {
+            color: white;
+            border-color: #667eea;
+        }
+        
+        .icon-btn.active::before {
+            left: 0;
+        }
+        
+        .icon-size {
+            font-size: 28px;
+        }
+        
+        .content {
+            padding: 30px;
+        }
+        
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+        
+        .form-group {
+            margin-bottom: 22px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 10px;
+            color: #333;
+            font-weight: 700;
+            font-size: 14px;
+            letter-spacing: 0.3px;
+        }
+        
+        .required {
+            color: #f44336;
+        }
+        
+        input, select, textarea {
+            width: 100%;
+            padding: 14px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 14px;
+            font-family: inherit;
+            transition: all 0.3s ease;
+            background: #f8f9fa;
+        }
+        
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            background: white;
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+        }
+        
+        textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+        
+        .measurement-group {
+            display: flex;
+            gap: 12px;
+            margin-top: 10px;
+        }
+        
+        #measurementSelect {
+            flex: 2;
+        }
+        
+        .btn-add-measurement {
+            flex: 1;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 14px 16px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 700;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-add-measurement:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(102, 126, 234, 0.3);
+        }
+        
+        .btn-submit {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 15px;
+            letter-spacing: 0.5px;
+        }
+        
+        .btn-submit:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 24px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-submit:active {
+            transform: translateY(-1px);
+        }
+        
+        .alert {
+            padding: 16px;
+            border-radius: 10px;
+            margin-top: 20px;
+            display: none;
+            font-weight: 700;
+            text-align: center;
+            animation: slideIn 0.3s ease;
+        }
+        
+        .alert.show {
+            display: block;
+        }
+        
+        .success {
+            background: #d4edda;
+            border: 2px solid #28a745;
+            color: #155724;
+        }
+        
+        .error {
+            background: #f8d7da;
+            border: 2px solid #f44336;
+            color: #721c24;
+        }
+        
+        .info-box {
+            background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%);
+            padding: 16px;
+            border-left: 4px solid #667eea;
+            border-radius: 8px;
+            font-size: 13px;
+            color: #333;
+            margin-bottom: 25px;
+            line-height: 1.6;
+        }
+        
+        .qr-container {
+            background: linear-gradient(135deg, #f0f4ff 0%, #faf0ff 100%);
+            padding: 35px;
+            border-radius: 15px;
+            border: 2px dashed #667eea;
+            text-align: center;
+            margin-top: 25px;
+            display: none;
+            animation: slideUp 0.5s ease;
+        }
+        
+        .qr-container.show {
+            display: block;
+        }
+        
+        .qr-header {
+            font-size: 18px;
+            font-weight: 700;
+            color: #667eea;
+            margin-bottom: 20px;
+        }
+        
+        .qr-display {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            display: inline-block;
+            margin: 20px 0;
+            box-shadow: 0 8px 16px rgba(102, 126, 234, 0.15);
+        }
+        
+        #qrcode {
+            display: inline-block !important;
+        }
+        
+        .bundle-info {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border-left: 4px solid #667eea;
+            font-size: 13px;
+            color: #555;
+            line-height: 1.8;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+        }
+        
+        .btn-action {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 13px;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-print {
+            background: #2196f3;
+            color: white;
+        }
+        
+        .btn-print:hover {
+            background: #1976d2;
+            transform: translateY(-2px);
+        }
+        
+        .btn-pdf {
+            background: #ff6f00;
+            color: white;
+        }
+        
+        .btn-pdf:hover {
+            background: #e65100;
+            transform: translateY(-2px);
+        }
+        
+        .btn-new {
+            background: #4caf50;
+            color: white;
+        }
+        
+        .btn-new:hover {
+            background: #388e3c;
+            transform: translateY(-2px);
+        }
+        
+        .stats-box {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 25px;
+        }
+        
+        .stat {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 8px 16px rgba(102, 126, 234, 0.2);
+        }
+        
+        .stat-number {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            opacity: 0.9;
+            letter-spacing: 0.5px;
+        }
+        
+        .hidden-qr {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- الرأس -->
+        <div class="header">
+            <h1>📦 نظام إدارة المخزن الذكي</h1>
+            <p>RW Pallet Manufacturing - النسخة الاحترافية 4.0</p>
+        </div>
+        
+        <!-- الأيقونات -->
+        <div class="tabs-icons">
+            <button class="icon-btn active" onclick="switchTab(event, 'receive')">
+                <span class="icon-size">📥</span>
+                <span>استقبال</span>
+            </button>
+            <button class="icon-btn" onclick="switchTab(event, 'scan')">
+                <span class="icon-size">📷</span>
+                <span>مسح</span>
+            </button>
+            <button class="icon-btn" onclick="switchTab(event, 'settings')">
+                <span class="icon-size">⚙️</span>
+                <span>إعدادات</span>
+            </button>
+        </div>
+        
+        <!-- المحتوى -->
+        <div class="content">
+            
+            <!-- تبويب الاستقبال -->
+            <div id="receive" class="tab-content active">
+                <div class="info-box">
+                    ✨ <strong>تسجيل استقبال ربطة جديدة</strong> — سيتم إنشاء QR Code و معلومات كاملة تلقائياً
+                </div>
+                
+                <div class="form-group">
+                    <label><span class="required">*</span>المورد:</label>
+                    <select id="supplier" onchange="toggleCustomSupplier()">
+                        <option value="">اختر المورد</option>
+                        <option value="فيتالي">فيتالي</option>
+                        <option value="أبو فهد">أبو فهد</option>
+                        <option value="روند">روند</option>
+                        <option value="نوكار">نوكار</option>
+                        <option value="custom">➕ مورد آخر</option>
+                    </select>
+                    <input type="text" id="customSupplier" placeholder="أدخل اسم المورد الجديد" style="display:none; margin-top: 10px;">
+                </div>
+                
+                <div class="form-group">
+                    <label><span class="required">*</span>قياس الخشب:</label>
+                    <div class="measurement-group">
+                        <select id="measurementSelect" onchange="toggleCustomMeasurement()">
+                            <option value="">اختر القياس</option>
+                            <option value="1 متر">1 متر</option>
+                            <option value="120 سم">120 سم</option>
+                            <option value="7×7">7×7</option>
+                            <option value="1.5 متر">1.5 متر</option>
+                            <option value="2 متر">2 متر</option>
+                            <option value="3 متر">3 متر</option>
+                            <option value="custom">➕ قياس آخر</option>
+                        </select>
+                    </div>
+                    <input type="text" id="customMeasurement" placeholder="مثال: 3.5 م أو 2.5 × 4 م" style="display:none; margin-top: 10px;">
+                </div>
+                
+                <div class="form-group">
+                    <label><span class="required">*</span>الدرجة:</label>
+                    <select id="grade">
+                        <option value="">اختر الدرجة</option>
+                        <option value="⭐ درجة أولى">⭐ درجة أولى</option>
+                        <option value="درجة ثانية">درجة ثانية</option>
+                        <option value="درجة ثالثة">درجة ثالثة</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label><span class="required">*</span>العدد (القطع):</label>
+                    <input type="number" id="quantity" placeholder="مثال: 100" min="1">
+                </div>
+                
+                <div class="form-group">
+                    <label><span class="required">*</span>تاريخ الاستلام:</label>
+                    <input type="date" id="receiptDate">
+                </div>
+                
+                <div class="form-group">
+                    <label>ملاحظات:</label>
+                    <textarea id="receiveNote" placeholder="أضف أي ملاحظات مهمة..."></textarea>
+                </div>
+                
+                <button class="btn-submit" onclick="submitReceive()">✅ تسجيل الاستقبال</button>
+                <div id="receiveSuccess" class="alert success"></div>
+                <div id="receiveError" class="alert error"></div>
+                
+                <!-- عرض QR Code -->
+                <div id="qrContainer" class="qr-container">
+                    <div class="qr-header">🎟️ بطاقة الربطة - Ready for Print</div>
+                    <div class="qr-display" id="qrPrintArea">
+                        <div style="text-align: center; margin-bottom: 15px;">
+                            <div style="font-size: 22px; font-weight: 700; color: #667eea; margin-bottom: 15px;" id="bundleIdDisplay">RB-001</div>
+                            <div id="qrcode"></div>
+                        </div>
+                        <div class="bundle-info" id="bundleDetails"></div>
+                    </div>
+                    <div class="action-buttons">
+                        <button class="btn-action btn-print" onclick="printQR()">🖨️ طباعة</button>
+                        <button class="btn-action btn-pdf" onclick="downloadPDF()">📄 PDF</button>
+                        <button class="btn-action btn-new" onclick="resetReceiveForm()">➕ جديد</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- تبويب المسح -->
+            <div id="scan" class="tab-content">
+                <div class="info-box">
+                    📱 <strong>مسح QR Code</strong> — امسح أو أدخل رقم الربطة لتحديث الحركة
+                </div>
+                
+                <div class="form-group">
+                    <label>رقم الربطة:</label>
+                    <input type="text" id="scanBundleId" placeholder="مثال: RB-001" autofocus>
+                </div>
+                
+                <div class="form-group">
+                    <label>نوع الحركة:</label>
+                    <select id="scanAction" onchange="updateDateField()">
+                        <option value="">اختر الحركة</option>
+                        <option value="دخول مخزن">📥 دخول المخزن</option>
+                        <option value="خط إنتاج">🏭 خط الإنتاج</option>
+                        <option value="خروج مخزن">📤 خروج المخزن</option>
+                    </select>
+                </div>
+                
+                <div class="form-group" id="dateFieldGroup" style="display:none;">
+                    <label><span class="required">*</span><span id="dateFieldLabel">تاريخ التسليم:</span></label>
+                    <input type="date" id="actionDate">
+                </div>
+                
+                <div class="form-group">
+                    <label>ملاحظات:</label>
+                    <textarea id="scanNote" placeholder="أضف أي ملاحظات..."></textarea>
+                </div>
+                
+                <button class="btn-submit" onclick="submitScan()">📤 تسجيل الحركة</button>
+                <div id="scanSuccess" class="alert success"></div>
+                <div id="scanError" class="alert error"></div>
+                
+                <!-- معلومات الربطة المسحوفة -->
+                <div id="scannedInfoContainer" class="qr-container" style="display:none;">
+                    <div class="qr-header">✅ معلومات الربطة</div>
+                    <div class="bundle-info" id="scannedInfo"></div>
+                    <div class="action-buttons">
+                        <button class="btn-action btn-print" onclick="printScannedInfo()">🖨️ طباعة</button>
+                        <button class="btn-action btn-new" onclick="resetScanForm()">🔄 مسح جديد</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- تبويب الإعدادات -->
+            <div id="settings" class="tab-content">
+                <div class="info-box">
+                    ⚙️ <strong>إحصائيات وإعدادات النظام</strong>
+                </div>
+                
+                <div class="stats-box">
+                    <div class="stat">
+                        <div class="stat-number" id="statBundles">0</div>
+                        <div class="stat-label">عدد الربطات</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-number" id="statLastBundle">RB-001</div>
+                        <div class="stat-label">آخر ربطة</div>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>معلومات النظام:</label>
+                    <div class="info-box">
+                        <strong>🚀 الإصدار:</strong> 4.0 - احترافي متقدم<br>
+                        <strong>✅ الحالة:</strong> يعمل بكفاءة عالية جداً<br>
+                        <strong>⚡ الميزات:</strong> QR ذكي + تواريخ شاملة + طباعة احترافية<br>
+                        <strong>📅 آخر تحديث:</strong> 2026
+                    </div>
+                </div>
+                
+                <button class="btn-submit" onclick="resetCounter()" style="background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%);">🔄 إعادة تعيين العداد</button>
+            </div>
+            
+        </div>
+    </div>
+    
+    <div class="hidden-qr" id="hiddenQrArea"></div>
+    
+    <script>
+        const API_URL = 'https://script.google.com/macros/s/AKfycbwxbupWfQe4BG7w2qd81eC5cHmYha6uD4bJnOxoDU_RdWQFL9yjxYZdFvR9oc4OqTakXw/exec';
+        
+        // تعريف البيانات المُخزنة
+        let currentBundleData = {};
+        
+        function switchTab(evt, tabName) {
+            const contents = document.querySelectorAll('.tab-content');
+            contents.forEach(c => c.classList.remove('active'));
+            document.getElementById(tabName).classList.add('active');
+            
+            const buttons = document.querySelectorAll('.icon-btn');
+            buttons.forEach(b => b.classList.remove('active'));
+            evt.currentTarget.classList.add('active');
+        }
+        
+        function toggleCustomSupplier() {
+            const select = document.getElementById('supplier');
+            const customInput = document.getElementById('customSupplier');
+            customInput.style.display = select.value === 'custom' ? 'block' : 'none';
+            if (select.value === 'custom') customInput.focus();
+        }
+        
+        function toggleCustomMeasurement() {
+            const select = document.getElementById('measurementSelect');
+            const customInput = document.getElementById('customMeasurement');
+            customInput.style.display = select.value === 'custom' ? 'block' : 'none';
+            if (select.value === 'custom') customInput.focus();
+        }
+        
+        function updateDateField() {
+            const action = document.getElementById('scanAction').value;
+            const dateGroup = document.getElementById('dateFieldGroup');
+            const dateLabel = document.getElementById('dateFieldLabel');
+            
+            if (action === 'خروج مخزن') {
+                dateGroup.style.display = 'block';
+                dateLabel.textContent = 'تاريخ التسليم:';
+            } else if (action === 'خط إنتاج') {
+                dateGroup.style.display = 'block';
+                dateLabel.textContent = 'تاريخ نقل الإنتاج:';
+            } else {
+                dateGroup.style.display = 'none';
+            }
+        }
+        
+        function getNextBundleId() {
+            let counter = localStorage.getItem('bundleCounter') || '0';
+            counter = parseInt(counter) + 1;
+            localStorage.setItem('bundleCounter', counter);
+            return 'RB-' + String(counter).padStart(3, '0');
+        }
+        
+        function updateStats() {
+            const counter = localStorage.getItem('bundleCounter') || '0';
+            document.getElementById('statBundles').textContent = counter;
+            const bundleId = 'RB-' + String(counter).padStart(3, '0');
+            document.getElementById('statLastBundle').textContent = bundleId;
+        }
+        
+        function formatDate(date) {
+            const d = new Date(date);
+            const days = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+            const months = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+            return `${days[d.getDay()]} - ${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+        }
+        
+        function submitReceive() {
+            let supplier = document.getElementById('supplier').value;
+            if (supplier === 'custom') {
+                supplier = document.getElementById('customSupplier').value;
+            }
+            
+            let measurement = document.getElementById('measurementSelect').value;
+            if (measurement === 'custom') {
+                measurement = document.getElementById('customMeasurement').value;
+            }
+            
+            const grade = document.getElementById('grade').value;
+            const quantity = document.getElementById('quantity').value;
+            const receiptDate = document.getElementById('receiptDate').value;
+            const note = document.getElementById('receiveNote').value;
+            
+            if (!supplier || !measurement || !grade || !quantity || !receiptDate) {
+                showAlert('receiveError', '⚠️ الرجاء ملء جميع الحقول الإجبارية!');
+                return;
+            }
+            
+            const bundleId = getNextBundleId();
+            
+            currentBundleData = {
+                bundleId: bundleId,
+                supplier: supplier,
+                measurement: measurement,
+                grade: grade,
+                qty: quantity,
+                receiptDate: receiptDate,
+                receiptDateFormatted: formatDate(receiptDate),
+                note: note,
+                action: 'دخول مخزن',
+                createdAt: new Date().toLocaleString('ar-IQ')
+            };
+            
+            const data = {
+                bundleId: bundleId,
+                supplier: supplier,
+                measurement: measurement,
+                grade: grade,
+                qty: quantity,
+                receiptDate: receiptDate,
+                deliveryDate: '',
+                action: 'دخول مخزن',
+                note: note
+            };
+            
+            sendData(data, 'receiveSuccess', 'receiveError');
+        }
+        
+        function submitScan() {
+            const bundleId = document.getElementById('scanBundleId').value.trim().toUpperCase();
+            const action = document.getElementById('scanAction').value;
+            const actionDate = document.getElementById('actionDate').value;
+            const note = document.getElementById('scanNote').value;
+            
+            if (!bundleId || !action) {
+                showAlert('scanError', '⚠️ الرجاء ملء جميع الحقول المطلوبة!');
+                return;
+            }
+            
+            if ((action === 'خروج مخزن' || action === 'خط إنتاج') && !actionDate) {
+                showAlert('scanError', '⚠️ الرجاء إدخال التاريخ!');
+                return;
+            }
+            
+            const data = {
+                bundleId: bundleId,
+                supplier: '',
+                measurement: '',
+                grade: '',
+                qty: '',
+                receiptDate: '',
+                deliveryDate: actionDate,
+                action: action,
+                note: note
+            };
+            
+            sendData(data, 'scanSuccess', 'scanError');
+            displayScannedInfo(bundleId, action, actionDate);
+        }
+        
+        function sendData(data, successId, errorId) {
+            fetch(API_URL, {
+                method: 'POST',
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.status === 'success') {
+                    showAlert(successId, '✅ تم التسجيل بنجاح!');
+                    if (currentBundleData.bundleId) {
+                        generateQRCode();
+                        updateStats();
+                    }
+                } else {
+                    showAlert(errorId, '❌ حدث خطأ في التسجيل');
+                }
+            })
+            .catch(error => {
+                showAlert(errorId, '❌ خطأ في الاتصال');
+            });
+        }
+        
+        function generateQRCode() {
+            document.getElementById('qrcode').innerHTML = '';
+            
+            new QRCode(document.getElementById('qrcode'), {
+                text: currentBundleData.bundleId,
+                width: 200,
+                height: 200,
+                colorDark: '#667eea',
+                colorLight: '#ffffff',
+                correctLevel: QRCode.CorrectLevel.H
+            });
+            
+            document.getElementById('bundleIdDisplay').textContent = currentBundleData.bundleId;
+            
+            const details = `
+                <strong style="color: #667eea; font-size: 15px;">📦 ${currentBundleData.bundleId}</strong><br>
+                <span style="color: #999; font-size: 11px;">━━━━━━━━━━━━━━━━━━━━━━━</span><br>
+                <strong>المورد:</strong> ${currentBundleData.supplier}<br>
+                <strong>القياس:</strong> ${currentBundleData.measurement}<br>
+                <strong>الدرجة:</strong> ${currentBundleData.grade}<br>
+                <strong>العدد:</strong> ${currentBundleData.qty} قطعة<br>
+                <strong>تاريخ الاستلام:</strong> ${currentBundleData.receiptDateFormatted}<br>
+                ${currentBundleData.note ? `<strong>ملاحظات:</strong> ${currentBundleData.note}<br>` : ''}
+                <span style="color: #999; font-size: 11px;">━━━━━━━━━━━━━━━━━━━━━━━</span><br>
+                <span style="color: #999; font-size: 10px;">🕒 ${currentBundleData.createdAt}</span>
+            `;
+            
+            document.getElementById('bundleDetails').innerHTML = details;
+            document.getElementById('qrContainer').classList.add('show');
+        }
+        
+        function displayScannedInfo(bundleId, action, actionDate) {
+            const formattedDate = actionDate ? formatDate(actionDate) : new Date().toLocaleDateString('ar-IQ');
+            
+            const info = `
+                <strong style="color: #667eea; font-size: 15px;">✅ ${bundleId}</strong><br>
+                <span style="color: #999; font-size: 11px;">━━━━━━━━━━━━━━━━━━━━━━━</span><br>
+                <strong>نوع الحركة:</strong> ${action}<br>
+                <strong>التاريخ:</strong> ${formattedDate}<br>
+                <span style="color: #999; font-size: 11px;">━━━━━━━━━━━━━━━━━━━━━━━</span><br>
+                <span style="color: #999; font-size: 10px;">🕒 ${new Date().toLocaleString('ar-IQ')}</span>
+            `;
+            
+            document.getElementById('scannedInfo').innerHTML = info;
+            document.getElementById('scannedInfoContainer').style.display = 'block';
+        }
+        
+        function printQR() {
+            const printWindow = window.open('', '', 'width=600,height=800');
+            const content = document.getElementById('qrPrintArea').innerHTML;
+            printWindow.document.write(`
+                <!DOCTYPE html>
+                <html dir="rtl">
+                <head>
+                    <meta charset="UTF-8">
+                    <title>طباعة - ${currentBundleData.bundleId}</title>
+                    <style>
+                        body {
+                            font-family: Arial, sans-serif;
+                            padding: 20px;
+                            text-align: center;
+                        }
+                        .qr-display {
+                            border: 2px solid #667eea;
+                            padding: 20px;
+                            margin: 20px 0;
+                            border-radius: 10px;
+                        }
+                        img {
+                            max-width: 300px;
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="qr-display">${content}</div>
+                </body>
+                </html>
+            `);
+            printWindow.document.close();
+            setTimeout(() => {
+                printWindow.print();
+            }, 250);
+        }
+        
+        function printScannedInfo() {
+            const printWindow = window.open('', '', 'width=600,height=400');
+            const content = document.getElementById('scannedInfo').innerHTML;
+            printWindow.document.write(`
+                <!DOCTYPE html>
+                <html dir="rtl">
+                <head>
+                    <meta charset="UTF-8">
+                    <title>تحديث حركة</title>
+                    <style>
+                        body {
+                            font-family: Arial, sans-serif;
+                            padding: 30px;
+                            text-align: center;
+                        }
+                    </style>
+                </head>
+                <body>
+                    ${content}
+                </body>
+                </html>
+            `);
+            printWindow.document.close();
+            setTimeout(() => {
+                printWindow.print();
+            }, 250);
+        }
+        
+        function downloadPDF() {
+            const element = document.getElementById('qrPrintArea');
+            const opt = {
+                margin: 10,
+                filename: `${currentBundleData.bundleId}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2 },
+                jsPDF: { orientation: 'portrait', unit: 'mm', format: 'a5' }
+            };
+            html2pdf().set(opt).from(element).save();
+        }
+        
+        function resetReceiveForm() {
+            document.getElementById('supplier').value = '';
+            document.getElementById('customSupplier').value = '';
+            document.getElementById('customSupplier').style.display = 'none';
+            document.getElementById('measurementSelect').value = '';
+            document.getElementById('customMeasurement').value = '';
+            document.getElementById('customMeasurement').style.display = 'none';
+            document.getElementById('grade').value = '';
+            document.getElementById('quantity').value = '';
+            document.getElementById('receiptDate').value = '';
+            document.getElementById('receiveNote').value = '';
+            document.getElementById('qrContainer').classList.remove('show');
+            document.getElementById('receiveSuccess').classList.remove('show');
+            document.getElementById('receiveError').classList.remove('show');
+        }
+        
+        function resetScanForm() {
+            document.getElementById('scanBundleId').value = '';
+            document.getElementById('scanAction').value = '';
+            document.getElementById('actionDate').value = '';
+            document.getElementById('scanNote').value = '';
+            document.getElementById('scannedInfoContainer').style.display = 'none';
+            document.getElementById('scanSuccess').classList.remove('show');
+            document.getElementById('scanError').classList.remove('show');
+        }
+        
+        function showAlert(elementId, message) {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.classList.add('show');
+            setTimeout(() => {
+                element.classList.remove('show');
+            }, 5000);
+        }
+        
+        function resetCounter() {
+            if (confirm('⚠️ هل تريد إعادة تعيين العداد؟ سيتم البدء من RB-001')) {
+                localStorage.setItem('bundleCounter', '0');
+                updateStats();
+                showAlert('receiveSuccess', '✅ تم إعادة تعيين العداد بنجاح!');
+            }
+        }
+        
+        // تعيين التاريخ الحالي افتراضياً
+        document.addEventListener('DOMContentLoaded', function() {
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('receiptDate').value = today;
+            document.getElementById('actionDate').value = today;
+            updateStats();
+        });
+    </script>
+</body>
+</html>
