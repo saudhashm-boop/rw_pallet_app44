@@ -1,0 +1,1057 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام إدارة المخزن الذكي - 8.0</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.4/html5-qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 15px;
+        }
+        
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 25px;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px 20px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+        
+        .header p {
+            font-size: 12px;
+            opacity: 0.95;
+        }
+        
+        .tabs {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            padding: 15px;
+            background: #f8f9fa;
+            gap: 8px;
+            border-bottom: 3px solid #667eea;
+        }
+        
+        .tab-btn {
+            padding: 10px;
+            border: 2px solid #ddd;
+            background: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 11px;
+            color: #555;
+            transition: all 0.3s;
+        }
+        
+        .tab-btn:hover {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+        
+        .tab-btn.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-color: #667eea;
+        }
+        
+        .content {
+            padding: 30px;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .form-group {
+            margin-bottom: 18px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 700;
+            color: #333;
+            font-size: 13px;
+        }
+        
+        .required {
+            color: #f44336;
+        }
+        
+        input, select, textarea {
+            width: 100%;
+            padding: 11px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 13px;
+            transition: all 0.3s;
+        }
+        
+        input:focus, select:focus {
+            border-color: #667eea;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        input:disabled, button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .btn-submit {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 12px;
+        }
+        
+        .btn-submit:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+        
+        .btn-submit:disabled {
+            opacity: 0.5;
+        }
+        
+        .alert {
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 12px;
+            display: none;
+            font-weight: 700;
+            text-align: center;
+            font-size: 12px;
+        }
+        
+        .alert.show {
+            display: block;
+        }
+        
+        .success {
+            background: #d4edda;
+            border: 2px solid #28a745;
+            color: #155724;
+        }
+        
+        .error {
+            background: #f8d7da;
+            border: 2px solid #f44336;
+            color: #721c24;
+        }
+        
+        .warning {
+            background: #fff3cd;
+            border: 2px solid #ff9800;
+            color: #856404;
+        }
+        
+        .info-box {
+            background: #e3f2fd;
+            padding: 12px;
+            border-left: 4px solid #667eea;
+            border-radius: 8px;
+            font-size: 12px;
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+        
+        .scanner-container {
+            background: #f8f9fa;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            text-align: center;
+            display: none;
+        }
+        
+        .scanner-container.active {
+            display: block;
+        }
+        
+        #html5-qrcode {
+            width: 100% !important;
+            max-width: 350px;
+            margin: 0 auto;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 16px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        
+        .stat-number {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+        
+        .stat-label {
+            font-size: 10px;
+            opacity: 0.9;
+            line-height: 1.4;
+        }
+        
+        .qr-box {
+            background: #f0f4ff;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            margin-top: 20px;
+            display: none;
+            border: 2px dashed #667eea;
+        }
+        
+        .qr-box.show {
+            display: block;
+        }
+        
+        .qr-display {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            display: inline-block;
+            margin: 10px 0;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+        
+        .btn-action {
+            flex: 1;
+            padding: 8px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 11px;
+            transition: all 0.3s;
+        }
+        
+        .btn-print {
+            background: #2196f3;
+            color: white;
+        }
+        
+        .btn-print:hover {
+            background: #1976d2;
+        }
+        
+        .btn-pdf {
+            background: #ff9800;
+            color: white;
+        }
+        
+        .btn-pdf:hover {
+            background: #f57c00;
+        }
+        
+        .btn-new {
+            background: #4caf50;
+            color: white;
+        }
+        
+        .btn-new:hover {
+            background: #388e3c;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 8px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📦 نظام إدارة المخزن الذكي</h1>
+            <p>RW Pallet Manufacturing - النسخة 8.0 المتكاملة</p>
+        </div>
+        
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('receive')">📥 استقبال</button>
+            <button class="tab-btn" onclick="switchTab('scan')">📷 مسح</button>
+            <button class="tab-btn" onclick="switchTab('sections')">📦 أقسام</button>
+            <button class="tab-btn" onclick="switchTab('stats')">📊 إحصائيات</button>
+        </div>
+        
+        <div class="content">
+            
+            <!-- تبويب الاستقبال -->
+            <div id="receive" class="tab-content active">
+                <div class="info-box">
+                    ✨ <strong>تسجيل استقبال ربطة جديدة</strong> — رقم فريد تلقائي + QR Code
+                </div>
+                
+                <div class="form-group">
+                    <label><span class="required">*</span>المورد:</label>
+                    <select id="supplier" onchange="toggleCustomField('supplier')">
+                        <option value="">اختر المورد</option>
+                        <option value="فيتالي">فيتالي</option>
+                        <option value="أبو فهد">أبو فهد</option>
+                        <option value="روند">روند</option>
+                        <option value="نوكار">نوكار</option>
+                        <option value="custom">➕ مورد جديد</option>
+                    </select>
+                    <input type="text" id="customSupplier" placeholder="أدخل اسم المورد الجديد" style="display:none; margin-top: 8px;">
+                </div>
+                
+                <div class="form-group">
+                    <label><span class="required">*</span>قياس الخشب:</label>
+                    <select id="measurement" onchange="toggleCustomField('measurement')">
+                        <option value="">اختر القياس</option>
+                        <option value="1 متر">1 متر</option>
+                        <option value="120 سم">120 سم</option>
+                        <option value="7×7">7×7</option>
+                        <option value="1.5 متر">1.5 متر</option>
+                        <option value="2 متر">2 متر</option>
+                        <option value="3 متر">3 متر</option>
+                        <option value="custom">➕ قياس جديد</option>
+                    </select>
+                    <input type="text" id="customMeasurement" placeholder="مثال: 3.5 متر" style="display:none; margin-top: 8px;">
+                </div>
+                
+                <div class="form-group">
+                    <label><span class="required">*</span>الدرجة:</label>
+                    <select id="grade">
+                        <option value="">اختر الدرجة</option>
+                        <option value="⭐ درجة أولى">⭐ درجة أولى</option>
+                        <option value="درجة ثانية">درجة ثانية</option>
+                        <option value="درجة ثالثة">درجة ثالثة</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label><span class="required">*</span>العدد (قطع):</label>
+                    <input type="number" id="quantity" placeholder="مثال: 100" min="1">
+                </div>
+                
+                <div class="form-group">
+                    <label><span class="required">*</span>تاريخ الاستقبال:</label>
+                    <input type="date" id="receiptDate">
+                </div>
+                
+                <div class="form-group">
+                    <label>ملاحظات:</label>
+                    <textarea id="note" placeholder="ملاحظات إضافية..." style="min-height: 70px;"></textarea>
+                </div>
+                
+                <button class="btn-submit" id="submitReceiveBtn" onclick="submitReceive()">✅ تسجيل الاستقبال</button>
+                <div id="receiveAlert" class="alert"></div>
+                
+                <div id="qrBox" class="qr-box">
+                    <div style="font-size: 14px; font-weight: 700; color: #667eea; margin-bottom: 10px;">🎟️ بطاقة الربطة - جاهزة للطباعة</div>
+                    <div class="qr-display" id="qrPrintArea">
+                        <div style="font-size: 18px; font-weight: 700; color: #667eea; margin-bottom: 10px;" id="bundleIdDisplay">RB-001</div>
+                        <div id="qrcode" style="display: inline-block;"></div>
+                        <div id="bundleInfo" style="margin-top: 10px; font-size: 11px; text-align: right; color: #333;"></div>
+                    </div>
+                    <div class="button-group">
+                        <button class="btn-action btn-print" onclick="printQR()">🖨️ طباعة</button>
+                        <button class="btn-action btn-pdf" onclick="downloadPDF()">📄 PDF</button>
+                        <button class="btn-action btn-new" onclick="resetReceiveForm()">➕ جديد</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- تبويب المسح -->
+            <div id="scan" class="tab-content">
+                <div class="info-box">
+                    📱 <strong>مسح QR Code</strong> — استخدم الكاميرا أو أدخل الرقم مباشرة
+                </div>
+                
+                <div style="text-align: center; margin-bottom: 15px;">
+                    <button class="btn-submit" id="cameraBtn" onclick="startCamera()" style="width: auto; padding: 10px 20px; margin: 0 5px 5px 0;">📷 ابدأ المسح</button>
+                    <button class="btn-submit" id="stopCameraBtn" onclick="stopCamera()" style="display:none; width: auto; padding: 10px 20px; background: #f44336;">⏹️ إيقاف</button>
+                </div>
+                
+                <div class="scanner-container" id="scannerContainer">
+                    <div id="html5-qrcode"></div>
+                    <div style="margin-top: 10px; font-size: 11px; color: #666;">🎯 وجّه الكاميرا نحو QR Code</div>
+                </div>
+                
+                <div style="background: #fff3e0; padding: 12px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #ff9800;">
+                    <strong>⌨️ أو أدخل رقم الربطة:</strong>
+                    <input type="text" id="bundleIdInput" placeholder="مثال: RB-001" style="margin-top: 8px;">
+                </div>
+                
+                <div class="form-group">
+                    <label>نوع الحركة:</label>
+                    <select id="actionType" onchange="updateDateField()">
+                        <option value="">اختر الحركة</option>
+                        <option value="دخول مخزن">📥 دخول المخزن</option>
+                        <option value="خط إنتاج">🏭 خط الإنتاج</option>
+                        <option value="خروج مخزن">📤 خروج المخزن</option>
+                    </select>
+                </div>
+                
+                <div class="form-group" id="dateGroup" style="display:none;">
+                    <label><span class="required">*</span>التاريخ والوقت:</label>
+                    <input type="datetime-local" id="actionDateTime">
+                </div>
+                
+                <div class="form-group">
+                    <label>ملاحظات:</label>
+                    <textarea id="scanNote" placeholder="ملاحظات..." style="min-height: 70px;"></textarea>
+                </div>
+                
+                <button class="btn-submit" id="submitScanBtn" onclick="submitScan()">📤 تسجيل الحركة</button>
+                <div id="scanAlert" class="alert"></div>
+                
+                <div id="scanResultContainer" style="display:none; background: #e8f5e9; padding: 12px; border-radius: 8px; margin-top: 12px; border-left: 4px solid #4caf50;">
+                    <strong style="color: #2e7d32;">✅ تم مسح الـ QR Code بنجاح!</strong>
+                    <div style="margin-top: 8px; color: #333; font-size: 12px;">
+                        <strong>الرقم:</strong> <span id="scannedBundleId" style="color: #667eea; font-weight: 700;"></span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- تبويب الأقسام -->
+            <div id="sections" class="tab-content">
+                <div class="info-box">
+                    📦 <strong>أقسام المخزن الثلاثة</strong> — توزيع الربطات والكميات حسب الموقع
+                </div>
+                
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div style="font-size: 11px; margin-bottom: 8px;">📥 المستودع الرئيسي</div>
+                        <div class="stat-number" id="warehouseCount">0</div>
+                        <div class="stat-label">ربطة</div>
+                        <div style="margin-top: 6px; font-size: 10px;">
+                            <strong id="warehouseItems">0</strong> قطعة
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div style="font-size: 11px; margin-bottom: 8px;">🏭 خط الإنتاج</div>
+                        <div class="stat-number" id="productionCount">0</div>
+                        <div class="stat-label">ربطة</div>
+                        <div style="margin-top: 6px; font-size: 10px;">
+                            <strong id="productionItems">0</strong> قطعة
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div style="font-size: 11px; margin-bottom: 8px;">📤 الأرصدة المودعة</div>
+                        <div class="stat-number" id="outboundCount">0</div>
+                        <div class="stat-label">ربطة</div>
+                        <div style="margin-top: 6px; font-size: 10px;">
+                            <strong id="outboundItems">0</strong> قطعة
+                        </div>
+                    </div>
+                </div>
+                
+                <button class="btn-submit" onclick="loadSectionStats()" style="background: #4caf50; margin-top: 15px;">🔄 تحديث الأقسام</button>
+            </div>
+            
+            <!-- تبويب الإحصائيات -->
+            <div id="stats" class="tab-content">
+                <div class="info-box">
+                    📈 <strong>الإحصائيات الإجمالية</strong> — ملخص شامل بناءً على السجلات والحركات
+                </div>
+                
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-number" id="totalBundles">0</div>
+                        <div class="stat-label">إجمالي الربطات</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="totalItems">0</div>
+                        <div class="stat-label">إجمالي القطع</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="totalMovements">0</div>
+                        <div class="stat-label">عدد الحركات</div>
+                    </div>
+                </div>
+                
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 10px; margin-top: 15px;">
+                    <strong style="color: #667eea; display: block; margin-bottom: 10px;">📦 توزيع الموردين:</strong>
+                    <div id="suppliersStats" style="font-size: 12px; line-height: 1.8;"></div>
+                </div>
+                
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 10px; margin-top: 15px;">
+                    <strong style="color: #667eea; display: block; margin-bottom: 10px;">📏 توزيع الأقيسة:</strong>
+                    <div id="measurementsStats" style="font-size: 12px; line-height: 1.8;"></div>
+                </div>
+                
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 10px; margin-top: 15px;">
+                    <strong style="color: #667eea; display: block; margin-bottom: 10px;">⭐ توزيع الدرجات:</strong>
+                    <div id="gradesStats" style="font-size: 12px; line-height: 1.8;"></div>
+                </div>
+                
+                <button class="btn-submit" onclick="loadStats()" style="background: #4caf50; margin-top: 15px;">🔄 تحديث الإحصائيات</button>
+            </div>
+            
+        </div>
+    </div>
+    
+    <script>
+        // ===================================
+        // الإعدادات الأساسية
+        // ===================================
+        
+        const API_URL = 'https://script.google.com/macros/s/AKfycbwNnipcSRv4e4TNPrnuJzLJwqPuznZ5v2krGFmk-yaFhgo5r-F1wbBQKPSZHVjCHRSASQ/exec';
+        
+        let scanner = null;
+        let isSubmitting = false;
+        let lastBundleId = null;
+        
+        // ===================================
+        // 1. التنقل بين التبويبات
+        // ===================================
+        
+        function switchTab(tabName) {
+            // إخفاء جميع التبويبات
+            document.querySelectorAll('.tab-content').forEach(t => {
+                t.classList.remove('active');
+            });
+            
+            // إظهار التبويب المختار
+            document.getElementById(tabName).classList.add('active');
+            
+            // تحديث الأزرار
+            document.querySelectorAll('.tab-btn').forEach(b => {
+                b.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            // إجراءات خاصة لكل تبويب
+            if (tabName === 'scan') stopCamera();
+            if (tabName === 'stats') loadStats();
+            if (tabName === 'sections') loadSectionStats();
+        }
+        
+        // ===================================
+        // 2. التعامل مع الحقول المخصصة
+        // ===================================
+        
+        function toggleCustomField(fieldType) {
+            const select = document.getElementById(fieldType);
+            const customInput = document.getElementById('custom' + fieldType.charAt(0).toUpperCase() + fieldType.slice(1));
+            
+            if (select.value === 'custom') {
+                customInput.style.display = 'block';
+                customInput.focus();
+            } else {
+                customInput.style.display = 'none';
+            }
+        }
+        
+        // ===================================
+        // 3. تسجيل الاستقبال (دخول مخزن)
+        // ===================================
+        
+        function submitReceive() {
+            // منع الضغط المتكرر
+            if (isSubmitting) return;
+            
+            // جمع البيانات
+            const supplier = document.getElementById('supplier').value === 'custom'
+                ? document.getElementById('customSupplier').value
+                : document.getElementById('supplier').value;
+            
+            const measurement = document.getElementById('measurement').value === 'custom'
+                ? document.getElementById('customMeasurement').value
+                : document.getElementById('measurement').value;
+            
+            const grade = document.getElementById('grade').value;
+            const qty = document.getElementById('quantity').value;
+            const receiptDate = document.getElementById('receiptDate').value;
+            const note = document.getElementById('note').value;
+            
+            // التحقق من البيانات الإجبارية
+            if (!supplier || !measurement || !grade || !qty || !receiptDate) {
+                showAlert('receiveAlert', '⚠️ الرجاء ملء جميع الحقول الإجبارية!', 'warning');
+                return;
+            }
+            
+            // تعطيل الزر
+            isSubmitting = true;
+            const submitBtn = document.getElementById('submitReceiveBtn');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '⏳ جاري الحفظ... <span class="loading"></span>';
+            
+            // حساب الرقم التالي
+            const bundleId = generateBundleId();
+            lastBundleId = bundleId;
+            
+            // إعداد البيانات للإرسال
+            const data = {
+                bundleId: bundleId,
+                supplier: supplier,
+                measurement: measurement,
+                grade: grade,
+                qty: qty,
+                receiptDate: receiptDate,
+                action: 'دخول مخزن',
+                note: note
+            };
+            
+            // إرسال البيانات
+            fetch(API_URL, {
+                method: 'POST',
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.status === 'success') {
+                    showAlert('receiveAlert', `✅ تم التسجيل بنجاح! الرقم: ${bundleId}`, 'success');
+                    
+                    // توليد QR Code
+                    generateQRCode(bundleId, supplier, measurement, grade, qty, receiptDate);
+                    
+                    // إعادة تفعيل الزر بعد 2 ثانية
+                    setTimeout(() => {
+                        isSubmitting = false;
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = '✅ تسجيل الاستقبال';
+                    }, 2000);
+                } else {
+                    showAlert('receiveAlert', `❌ خطأ: ${result.message}`, 'error');
+                    isSubmitting = false;
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '✅ تسجيل الاستقبال';
+                }
+            })
+            .catch(error => {
+                showAlert('receiveAlert', `❌ خطأ الاتصال: ${error}`, 'error');
+                isSubmitting = false;
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '✅ تسجيل الاستقبال';
+            });
+        }
+        
+        // ===================================
+        // 4. توليد رقم الربطة الفريد
+        // ===================================
+        
+        function generateBundleId() {
+            let counter = localStorage.getItem('bundleCounter') || '0';
+            counter = parseInt(counter) + 1;
+            localStorage.setItem('bundleCounter', counter);
+            return 'RB-' + String(counter).padStart(3, '0');
+        }
+        
+        // ===================================
+        // 5. توليد QR Code
+        // ===================================
+        
+        function generateQRCode(bundleId, supplier, measurement, grade, qty, date) {
+            // حذف QR القديم
+            document.getElementById('qrcode').innerHTML = '';
+            
+            // توليد QR جديد
+            new QRCode(document.getElementById('qrcode'), {
+                text: bundleId,
+                width: 160,
+                height: 160,
+                colorDark: '#667eea',
+                colorLight: '#ffffff',
+                correctLevel: QRCode.CorrectLevel.H
+            });
+            
+            // عرض البيانات
+            document.getElementById('bundleIdDisplay').textContent = bundleId;
+            document.getElementById('bundleInfo').innerHTML = `
+                <strong>المورد:</strong> ${supplier}<br>
+                <strong>القياس:</strong> ${measurement}<br>
+                <strong>الدرجة:</strong> ${grade}<br>
+                <strong>العدد:</strong> ${qty} قطعة<br>
+                <strong>التاريخ:</strong> ${date}
+            `;
+            
+            // إظهار صندوق QR
+            document.getElementById('qrBox').classList.add('show');
+        }
+        
+        // ===================================
+        // 6. الطباعة
+        // ===================================
+        
+        function printQR() {
+            const printWindow = window.open('', '', 'width=600,height=400');
+            const content = document.getElementById('qrPrintArea').innerHTML;
+            
+            printWindow.document.write(`
+                <!DOCTYPE html>
+                <html dir="rtl">
+                <head>
+                    <meta charset="UTF-8">
+                    <title>طباعة QR Code</title>
+                    <style>
+                        body {
+                            font-family: Arial, sans-serif;
+                            padding: 20px;
+                            text-align: center;
+                            direction: rtl;
+                        }
+                        .qr-display {
+                            border: 3px solid #667eea;
+                            padding: 20px;
+                            display: inline-block;
+                            border-radius: 10px;
+                        }
+                        img {
+                            max-width: 100%;
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="qr-display">${content}</div>
+                </body>
+                </html>
+            `);
+            
+            printWindow.document.close();
+            setTimeout(() => printWindow.print(), 250);
+        }
+        
+        // ===================================
+        // 7. تحميل PDF
+        // ===================================
+        
+        function downloadPDF() {
+            const element = document.getElementById('qrPrintArea');
+            const bundleId = document.getElementById('bundleIdDisplay').textContent;
+            
+            const opt = {
+                margin: 10,
+                filename: `${bundleId}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2 },
+                jsPDF: { orientation: 'portrait', unit: 'mm', format: 'a5' }
+            };
+            
+            html2pdf().set(opt).from(element).save();
+        }
+        
+        // ===================================
+        // 8. إعادة تعيين نموذج الاستقبال
+        // ===================================
+        
+        function resetReceiveForm() {
+            document.getElementById('supplier').value = '';
+            document.getElementById('customSupplier').value = '';
+            document.getElementById('customSupplier').style.display = 'none';
+            document.getElementById('measurement').value = '';
+            document.getElementById('customMeasurement').value = '';
+            document.getElementById('customMeasurement').style.display = 'none';
+            document.getElementById('grade').value = '';
+            document.getElementById('quantity').value = '';
+            document.getElementById('receiptDate').value = '';
+            document.getElementById('note').value = '';
+            document.getElementById('qrBox').classList.remove('show');
+            document.getElementById('submitReceiveBtn').disabled = false;
+            document.getElementById('submitReceiveBtn').innerHTML = '✅ تسجيل الاستقبال';
+        }
+        
+        // ===================================
+        // 9. بدء مسح QR Code
+        // ===================================
+        
+        function startCamera() {
+            document.getElementById('scannerContainer').classList.add('active');
+            document.getElementById('cameraBtn').style.display = 'none';
+            document.getElementById('stopCameraBtn').style.display = 'inline-block';
+            
+            const config = {
+                fps: 10,
+                qrbox: { width: 250, height: 250 },
+                rememberLastUsedCamera: true,
+                supportedScanTypes: ['SCAN_TYPE_CAMERA']
+            };
+            
+            Html5Qrcode.getCameras().then(devices => {
+                if (devices && devices.length) {
+                    const cameraId = devices[0].id;
+                    scanner = new Html5Qrcode('html5-qrcode');
+                    
+                    scanner.start(
+                        cameraId,
+                        config,
+                        onScanSuccess,
+                        onScanError
+                    ).catch(err => {
+                        showAlert('scanAlert', '❌ لا توجد كاميرا متاحة! أدخل الرقم يدوياً.', 'error');
+                        stopCamera();
+                    });
+                }
+            }).catch(err => {
+                showAlert('scanAlert', '❌ لم يتمكن من الوصول للكاميرا.', 'error');
+                stopCamera();
+            });
+        }
+        
+        // ===================================
+        // 10. إيقاف المسح
+        // ===================================
+        
+        function stopCamera() {
+            if (scanner) {
+                scanner.stop().then(() => {
+                    scanner = null;
+                }).catch(() => {
+                    scanner = null;
+                });
+            }
+            
+            document.getElementById('scannerContainer').classList.remove('active');
+            document.getElementById('cameraBtn').style.display = 'inline-block';
+            document.getElementById('stopCameraBtn').style.display = 'none';
+        }
+        
+        // ===================================
+        // 11. عند مسح QR بنجاح
+        // ===================================
+        
+        function onScanSuccess(decodedText) {
+            const bundleId = decodedText.toUpperCase();
+            document.getElementById('bundleIdInput').value = bundleId;
+            document.getElementById('scannedBundleId').textContent = bundleId;
+            document.getElementById('scanResultContainer').style.display = 'block';
+            
+            stopCamera();
+            
+            showAlert('scanAlert', `✅ تم مسح QR Code: ${bundleId}`, 'success');
+        }
+        
+        // ===================================
+        // 12. معالجة خطأ المسح
+        // ===================================
+        
+        function onScanError(error) {
+            // لا نعرض رسالة لكل محاولة فاشلة
+        }
+        
+        // ===================================
+        // 13. تحديث حقل التاريخ
+        // ===================================
+        
+        function updateDateField() {
+            const action = document.getElementById('actionType').value;
+            const dateGroup = document.getElementById('dateGroup');
+            
+            if (action) {
+                dateGroup.style.display = 'block';
+            } else {
+                dateGroup.style.display = 'none';
+            }
+        }
+        
+        // ===================================
+        // 14. تسجيل الحركة (مسح QR)
+        // ===================================
+        
+        function submitScan() {
+            let bundleId = document.getElementById('bundleIdInput').value.trim().toUpperCase();
+            const action = document.getElementById('actionType').value;
+            const actionDateTime = document.getElementById('actionDateTime').value;
+            const note = document.getElementById('scanNote').value;
+            
+            if (!bundleId || !action) {
+                showAlert('scanAlert', '⚠️ أدخل رقم الربطة واختر نوع الحركة!', 'warning');
+                return;
+            }
+            
+            if (!actionDateTime) {
+                showAlert('scanAlert', '⚠️ حدد التاريخ والوقت!', 'warning');
+                return;
+            }
+            
+            const submitBtn = document.getElementById('submitScanBtn');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '⏳ جاري التسجيل... <span class="loading"></span>';
+            
+            const data = {
+                bundleId: bundleId,
+                action: action,
+                actionDateTime: actionDateTime,
+                note: note
+            };
+            
+            fetch(API_URL, {
+                method: 'POST',
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.status === 'success') {
+                    showAlert('scanAlert', `✅ تم تسجيل الحركة بنجاح!`, 'success');
+                    
+                    // تفريغ الحقول
+                    document.getElementById('bundleIdInput').value = '';
+                    document.getElementById('actionType').value = '';
+                    document.getElementById('actionDateTime').value = '';
+                    document.getElementById('scanNote').value = '';
+                    document.getElementById('scanResultContainer').style.display = 'none';
+                    document.getElementById('dateGroup').style.display = 'none';
+                    
+                    // تحديث الإحصائيات
+                    loadSectionStats();
+                    
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '📤 تسجيل الحركة';
+                } else {
+                    showAlert('scanAlert', `❌ خطأ: ${result.message}`, 'error');
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '📤 تسجيل الحركة';
+                }
+            })
+            .catch(error => {
+                showAlert('scanAlert', `❌ خطأ الاتصال`, 'error');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '📤 تسجيل الحركة';
+            });
+        }
+        
+        // ===================================
+        // 15. تحميل إحصائيات الأقسام
+        // ===================================
+        
+        function loadSectionStats() {
+            fetch(`${API_URL}?action=getStats`)
+                .then(response => response.json())
+                .then(stats => {
+                    document.getElementById('warehouseCount').textContent = stats.sections.warehouse.bundles;
+                    document.getElementById('warehouseItems').textContent = stats.sections.warehouse.items;
+                    
+                    document.getElementById('productionCount').textContent = stats.sections.production.bundles;
+                    document.getElementById('productionItems').textContent = stats.sections.production.items;
+                    
+                    document.getElementById('outboundCount').textContent = stats.sections.outbound.bundles;
+                    document.getElementById('outboundItems').textContent = stats.sections.outbound.items;
+                })
+                .catch(() => {
+                    showAlert('scanAlert', '❌ خطأ في تحميل البيانات', 'error');
+                });
+        }
+        
+        // ===================================
+        // 16. تحميل الإحصائيات الشاملة
+        // ===================================
+        
+        function loadStats() {
+            fetch(`${API_URL}?action=getStats`)
+                .then(response => response.json())
+                .then(stats => {
+                    // الأرقام الإجمالية
+                    document.getElementById('totalBundles').textContent = stats.totalBundles;
+                    document.getElementById('totalItems').textContent = stats.totalItems;
+                    document.getElementById('totalMovements').textContent = stats.totalMovements;
+                    
+                    // توزيع الموردين
+                    let suppliersHTML = '';
+                    for (let [supplier, data] of Object.entries(stats.suppliers)) {
+                        suppliersHTML += `<div>📦 <strong>${supplier}:</strong> ${data.bundles} ربطة / ${data.items} قطعة</div>`;
+                    }
+                    document.getElementById('suppliersStats').innerHTML = suppliersHTML || '<div>لا توجد بيانات</div>';
+                    
+                    // توزيع الأقيسة
+                    let measurementsHTML = '';
+                    for (let [measurement, data] of Object.entries(stats.measurements)) {
+                        measurementsHTML += `<div>📏 <strong>${measurement}:</strong> ${data.bundles} ربطة / ${data.items} قطعة</div>`;
+                    }
+                    document.getElementById('measurementsStats').innerHTML = measurementsHTML || '<div>لا توجد بيانات</div>';
+                    
+                    // توزيع الدرجات
+                    let gradesHTML = '';
+                    for (let [grade, data] of Object.entries(stats.grades)) {
+                        gradesHTML += `<div>⭐ <strong>${grade}:</strong> ${data.bundles} ربطة / ${data.items} قطعة</div>`;
+                    }
+                    document.getElementById('gradesStats').innerHTML = gradesHTML || '<div>لا توجد بيانات</div>';
+                })
+                .catch(() => {
+                    showAlert('scanAlert', '❌ خطأ في تحميل الإحصائيات', 'error');
+                });
+        }
+        
+        // ===================================
+        // 17. عرض الرسائل
+        // ===================================
+        
+        function showAlert(elementId, message, type) {
+            const alert = document.getElementById(elementId);
+            alert.textContent = message;
+            alert.className = 'alert show ' + type;
+            
+            setTimeout(() => {
+                alert.classList.remove('show');
+            }, 5000);
+        }
+        
+        // ===================================
+        // 18. التهيئة عند فتح الصفحة
+        // ===================================
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            // ضبط التاريخ الافتراضي
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('receiptDate').value = today;
+            
+            // ضبط التاريخ والوقت الافتراضي
+            const now = new Date().toISOString().slice(0, 16);
+            document.getElementById('actionDateTime').value = now;
+        });
+    </script>
+</body>
+</html>
