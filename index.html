@@ -253,7 +253,7 @@ let state = { employees: [], transactions: [], users: [], currentUser:null, acti
 
 // ===== الاتصال بقاعدة البيانات (Google Sheet عبر Apps Script) =====
 // ضع هنا رابط "تطبيق الويب" الذي تحصل عليه من نهاية المرحلة 2 (ينتهي بـ /exec)
-const API_URL = "ضع_رابط_Apps_Script_هنا";
+const API_URL = "https://script.google.com/macros/s/AKfycbxFwlWQHUWc5ACtTvNm2VuRhl2163oBsoyYyBGaogoUnMHD3HkD0p9V22tU5DdgTv3llw/exec";
 
 async function apiGetAll(){
   const res = await fetch(API_URL);
