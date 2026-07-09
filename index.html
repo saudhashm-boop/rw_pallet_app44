@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RW Pallet — نظام تتبع التصليح</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;800&family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --charcoal:#211E1A;
+    --charcoal-soft:#332F29;
+    --paper:#EDE3CE;
+    --paper-light:#F6F0E2;
+    --amber:#D68C21;
+    --amber-dark:#B06E12;
+    --forest:#3E5C4E;
+    --forest-light:#EAF0EC;
+    --rust:#B23A2E;
+    --rust-light:#F7E7E4;
+    --steel:#6B6355;
+    --steel-line:#D9CBAA;
+    --shadow: 0 2px 10px rgba(33,30,26,0.08);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--charcoal);
+    font-family:'Tajawal',sans-serif;
+    min-height:100vh;
+  }
+  h1,h2,h3,.disp{ font-family:'Cairo',sans-serif; }
+
+  /* ===== Header ===== */
+  header{
+    background:var(--charcoal);
+    color:var(--paper-light);
+    padding:18px 24px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:12px;
+    border-bottom:4px solid var(--amber);
+  }
+  .brand{ display:flex; align-items:center; gap:12px; }
+  .brand .mark{
+    width:38px;height:38px;border-radius:6px;
+    background:var(--amber);
+    display:flex;align-items:center;justify-content:center;
+    font-family:'Cairo',sans-serif;font-weight:800;color:var(--charcoal);
+    font-size:18px;
+    transform:rotate(-3deg);
+  }
+  .brand-text .disp{ font-size:19px; font-weight:800; letter-spacing:.2px;}
+  .brand-text small{ display:block; color:#C8BE9F; font-size:12px; margin-top:1px;}
+  .role-box{ display:flex; align-items:center; gap:8px; font-size:13px; color:#C8BE9F;}
+  .role-box select{
+    background:var(--charcoal-soft); color:var(--paper-light);
+    border:1px solid #4a453b; border-radius:8px; padding:7px 10px;
+    font-family:'Tajawal',sans-serif; font-size:13px;
+  }
+
+  /* ===== Tabs ===== */
+  nav.tabs{
+    display:flex; gap:6px; padding:14px 24px 0; flex-wrap:wrap;
+    background:var(--paper);
+  }
+  nav.tabs button{
+    border:none; background:transparent; padding:10px 16px;
+    font-family:'Tajawal',sans-serif; font-weight:700; font-size:14px;
+    color:var(--steel); cursor:pointer; border-radius:10px 10px 0 0;
+    border:1px solid transparent;
+  }
+  nav.tabs button.active{
+    background:var(--paper-light); color:var(--charcoal);
+    border:1px solid var(--steel-line); border-bottom-color:var(--paper-light);
+  }
+  main{ padding:0 24px 60px; max-width:1180px; margin:0 auto; }
+  .panel{
+    background:var(--paper-light);
+    border:1px solid var(--steel-line);
+    border-radius:0 12px 12px 12px;
+    padding:22px;
+    box-shadow:var(--shadow);
+    margin-top:-1px;
+  }
+  .panel h2{ margin:0 0 4px; font-size:20px; }
+  .panel .sub{ color:var(--steel); font-size:13px; margin-bottom:18px; }
+
+  /* ===== Cards (ticket / tally stub look) ===== */
+  .grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:14px; margin-top:8px;}
+  .ticket{
+    position:relative;
+    background:var(--paper-light);
+    border:1.5px dashed var(--steel-line);
+    border-radius:10px;
+    padding:16px 16px 14px;
+  }
+  .ticket::before, .ticket::after{
+    content:""; position:absolute; width:14px; height:14px; background:var(--paper);
+    border:1.5px dashed var(--steel-line); border-radius:50%; top:50%; transform:translateY(-50%);
+  }
+  .ticket::before{ right:-8px; } .ticket::after{ left:-8px; }
+  .ticket .name{ font-family:'Cairo',sans-serif; font-weight:700; font-size:15px; margin-bottom:10px;}
+  .ticket .row{ display:flex; justify-content:space-between; font-size:13px; color:var(--steel); padding:3px 0;}
+  .ticket .row b{ color:var(--charcoal); font-weight:700; }
+  .ticket .balance{
+    margin-top:10px; padding-top:10px; border-top:1px solid var(--steel-line);
+    display:flex; justify-content:space-between; align-items:center;
+  }
+  .balance .val{ font-family:'Cairo',sans-serif; font-weight:800; font-size:22px; }
+  .balance .val.zero{ color:var(--forest); }
+  .balance .val.pos{ color:var(--amber-dark); }
+  .balance .lbl{ font-size:12px; color:var(--steel); }
+
+  /* ===== Forms ===== */
+  .field{ margin-bottom:14px; display:flex; flex-direction:column; gap:6px; }
+  .field label{ font-size:13px; font-weight:700; color:var(--charcoal-soft); }
+  .field select, .field input{
+    padding:10px 12px; border:1.5px solid var(--steel-line); border-radius:8px;
+    font-family:'Tajawal',sans-serif; font-size:14px; background:#fff; color:var(--charcoal);
+  }
+  .field-row{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  @media(max-width:520px){ .field-row{ grid-template-columns:1fr; } }
+  .btn{
+    border:none; border-radius:9px; padding:11px 20px; font-family:'Tajawal',sans-serif;
+    font-weight:700; font-size:14px; cursor:pointer; display:inline-flex; align-items:center; gap:8px;
+  }
+  .btn-primary{ background:var(--amber); color:var(--charcoal); }
+  .btn-primary:hover{ background:var(--amber-dark); color:#fff; }
+  .btn-ghost{ background:transparent; border:1.5px solid var(--steel-line); color:var(--charcoal-soft); }
+  .btn-danger{ background:var(--rust-light); color:var(--rust); }
+  .toast{
+    position:fixed; bottom:20px; left:50%; transform:translateX(-50%);
+    background:var(--charcoal); color:var(--paper-light); padding:12px 20px; border-radius:9px;
+    font-size:14px; box-shadow:var(--shadow); opacity:0; pointer-events:none; transition:opacity .25s;
+    z-index:50;
+  }
+  .toast.show{ opacity:1; }
+
+  /* ===== Table ===== */
+  table{ width:100%; border-collapse:collapse; font-size:13.5px; }
+  th{ text-align:right; background:var(--forest-light); color:var(--forest); padding:10px; font-weight:700; border-bottom:2px solid var(--steel-line); }
+  td{ padding:10px; border-bottom:1px solid var(--steel-line); }
+  tr:hover td{ background:#F9F5EA; }
+  .tag{ display:inline-block; padding:3px 10px; border-radius:20px; font-size:12px; font-weight:700; }
+  .tag-in{ background:var(--forest-light); color:var(--forest); }
+  .tag-out{ background:#F3E2C8; color:var(--amber-dark); }
+  .empty{ text-align:center; color:var(--steel); padding:40px 10px; font-size:14px; }
+  .totals-strip{ display:flex; gap:18px; flex-wrap:wrap; margin-bottom:18px; }
+  .stat{ background:var(--paper); border:1px solid var(--steel-line); border-radius:10px; padding:12px 18px; min-width:120px;}
+  .stat .n{ font-family:'Cairo',sans-serif; font-weight:800; font-size:22px; }
+  .stat .l{ font-size:12px; color:var(--steel); margin-top:2px; }
+  .warn-box{ background:var(--rust-light); color:var(--rust); border-radius:8px; padding:10px 14px; font-size:13px; margin-bottom:14px; display:none; }
+  .warn-box.show{ display:block; }
+  .actions-row{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  .loading{ text-align:center; padding:50px; color:var(--steel); }
+
+  /* ===== Login overlay ===== */
+  .overlay{
+    position:fixed; inset:0; background:rgba(33,30,26,0.72);
+    display:flex; align-items:center; justify-content:center; z-index:100; padding:20px;
+  }
+  .login-card{
+    background:var(--paper-light); border-radius:14px; padding:28px; width:100%; max-width:420px;
+    box-shadow:0 10px 40px rgba(0,0,0,0.3);
+  }
+  .login-card h2{ margin:0 0 4px; }
+  .login-card .sub{ color:var(--steel); font-size:13px; margin-bottom:18px; }
+  .user-list{ display:flex; flex-direction:column; gap:8px; max-height:260px; overflow-y:auto; margin-bottom:16px; }
+  .user-pick{
+    display:flex; justify-content:space-between; align-items:center;
+    border:1.5px solid var(--steel-line); border-radius:9px; padding:10px 14px;
+    cursor:pointer; background:#fff; font-weight:700; font-size:14px;
+  }
+  .user-pick:hover{ border-color:var(--amber); background:var(--paper); }
+  .user-pick .r{ font-size:12px; font-weight:500; color:var(--steel); }
+  .divider-or{ text-align:center; color:var(--steel); font-size:12px; margin:14px 0; position:relative; }
+  .divider-or::before,.divider-or::after{ content:""; position:absolute; top:50%; width:40%; height:1px; background:var(--steel-line); }
+  .divider-or::before{ right:0; } .divider-or::after{ left:0; }
+  .pin-step{ text-align:center; }
+  .pin-step .who{ font-family:'Cairo',sans-serif; font-weight:800; font-size:17px; margin-bottom:4px; }
+  .pin-input{
+    width:160px; margin:14px auto; display:block; text-align:center; letter-spacing:10px;
+    font-size:22px; padding:10px; border:1.5px solid var(--steel-line); border-radius:9px;
+  }
+  .pin-error{ color:var(--rust); font-size:13px; margin-bottom:8px; min-height:16px; }
+
+  .user-badge{
+    display:flex; align-items:center; gap:10px; background:var(--charcoal-soft);
+    padding:6px 12px 6px 6px; border-radius:30px; border:1px solid #4a453b;
+  }
+  .user-badge .av{
+    width:28px;height:28px;border-radius:50%;background:var(--amber);color:var(--charcoal);
+    font-family:'Cairo',sans-serif; font-weight:800; font-size:13px;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .user-badge .u{ font-size:13px; color:var(--paper-light); line-height:1.2; }
+  .user-badge .u small{ display:block; color:#B9AF92; font-size:11px; }
+  .user-badge button{
+    background:transparent; border:none; color:#C8BE9F; font-size:12px; cursor:pointer;
+    text-decoration:underline; font-family:'Tajawal',sans-serif;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="mark">RW</div>
+    <div class="brand-text">
+      <div class="disp">نظام تتبع تصليح الطبالي</div>
+      <small>RW Pallet — For Pallet Manufacturing</small>
+    </div>
+  </div>
+  <div class="role-box" id="userBadgeHost"></div>
+</header>
+
+<div class="overlay" id="loginOverlay" style="display:none;">
+  <div class="login-card">
+    <h2>من يُسجّل الآن؟</h2>
+    <div class="sub">اختر اسمك من القائمة — كل حركة تُنسب إليك بالاسم في السجل.</div>
+    <div class="user-list" id="userList"></div>
+    <div class="divider-or">أو</div>
+    <div class="field"><label>اسمي غير موجود — إضافة مستخدم جديد</label><input type="text" id="newUserName" placeholder="الاسم الكامل"></div>
+    <div class="field"><label>الصفة الوظيفية</label>
+      <select id="newUserRole">
+        ${ROLE_OPTIONS}
+      </select>
+    </div>
+    <div class="field"><label>رمز سري من 4 أرقام (تتذكّره لتسجيل الدخول لاحقاً)</label><input type="password" inputmode="numeric" maxlength="4" id="newUserPin" placeholder="••••"></div>
+    <button class="btn btn-primary" id="newUserAdd" style="width:100%;justify-content:center;">إضافتي وتسجيل الدخول</button>
+  </div>
+</div>
+
+<nav class="tabs" id="tabs"></nav>
+<main><div id="panelHost" class="panel"><div class="loading">جارِ تحميل البيانات…</div></div></main>
+<div class="toast" id="toast"></div>
+
+<script>
+const TABS = [
+  {id:'dashboard', label:'لوحة المتابعة'},
+  {id:'receive', label:'تسجيل استلام غير مصلح'},
+  {id:'deliver', label:'تسليم مصلح / مفرط'},
+  {id:'reports', label:'التقارير اليومية'},
+  {id:'log', label:'سجل الأنشطة'},
+  {id:'employees', label:'الموظفون (عمال التصليح)'},
+  {id:'users', label:'المستخدمون (تسجيل الدخول)'},
+];
+let state = { employees: [], transactions: [], users: [], currentUser:null, activeTab:'dashboard', loading:true };
+
+// ===== الاتصال بقاعدة البيانات (Google Sheet عبر Apps Script) =====
+// ضع هنا رابط "تطبيق الويب" الذي تحصل عليه من نهاية المرحلة 2 (ينتهي بـ /exec)
+const API_URL = "ضع_رابط_Apps_Script_هنا";
+
+async function apiGetAll(){
+  const res = await fetch(API_URL);
+  if(!res.ok) throw new Error('network');
+  return res.json();
+}
+async function apiPost(payload){
+  const res = await fetch(API_URL, {
+    method:'POST',
+    headers:{'Content-Type':'text/plain;charset=utf-8'}, // نتجنب هذا النوع تعقيدات CORS مع Apps Script
+    body: JSON.stringify(payload)
+  });
+  if(!res.ok) throw new Error('network');
+  return res.json();
+}
+
+const ROLE_LABEL = {receiver:'موظف الاستلام/التسليم', repairer:'عامل تصليح', production:'مدير الإنتاج', quality:'مدير جودة', warehouse:'أمين مخزن', admin:'المدير العام'};
+const ROLE_OPTIONS = `
+  <option value="receiver">موظف الاستلام/التسليم</option>
+  <option value="repairer">عامل تصليح</option>
+  <option value="production">مدير الإنتاج</option>
+  <option value="quality">مدير جودة</option>
+  <option value="warehouse">أمين مخزن</option>
+  <option value="admin">المدير العام</option>
+`;
+
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+function customConfirm(message){
+  return new Promise(resolve=>{
+    const ov = document.createElement('div');
+    ov.className = 'overlay';
+    ov.style.zIndex = '200';
+    ov.innerHTML = `
+      <div class="login-card" style="max-width:360px;text-align:center;">
+        <div style="font-size:14px;margin-bottom:20px;line-height:1.7;">${message}</div>
+        <div style="display:flex;gap:10px;">
+          <button class="btn btn-danger" id="cfYes" style="flex:1;justify-content:center;">تأكيد</button>
+          <button class="btn btn-ghost" id="cfNo" style="flex:1;justify-content:center;">إلغاء</button>
+        </div>
+      </div>`;
+    document.body.appendChild(ov);
+    ov.querySelector('#cfYes').addEventListener('click', ()=>{ document.body.removeChild(ov); resolve(true); });
+    ov.querySelector('#cfNo').addEventListener('click', ()=>{ document.body.removeChild(ov); resolve(false); });
+  });
+}
+function todayISO(){ return new Date().toISOString().slice(0,10); }
+function fmtDateTime(ts){
+  const d = new Date(Number(ts));
+  return d.toLocaleDateString('ar-EG')+' '+d.toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'});
+}
+function showToast(msg){
+  const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2400);
+}
+
+async function loadAll(){
+  try{
+    const data = await apiGetAll();
+    state.users = (data.users||[]).filter(u=>u.id);
+    state.employees = (data.employees||[]).filter(e=>e.id);
+    state.transactions = (data.transactions||[]).filter(t=>t.id).map(t=>({
+      ...t,
+      qty:Number(t.qty||0), repaired:Number(t.repaired||0), dismantled:Number(t.dismantled||0),
+      ts:Number(t.ts||0), date:String(t.date||'').slice(0,10)
+    }));
+  }catch(e){
+    state.users=[]; state.employees=[]; state.transactions=[];
+    showToast('تعذّر الاتصال بقاعدة البيانات — تحقق من الإنترنت ومن رابط الاتصال (API_URL)');
+  }
+  state.loading = false;
+}
+async function saveUsers(){
+  try{ await apiPost({sheet:'users', mode:'replace', data:state.users}); }
+  catch(e){ showToast('تعذّر حفظ قائمة المستخدمين — تحقق من الاتصال بالإنترنت'); }
+}
+function seedEmployees(){
+  return [
+    {id:uid(), name:'أضف اسم العامل الأول'},
+    {id:uid(), name:'أضف اسم العامل الثاني'},
+  ];
+}
+async function saveEmployees(){
+  try{ await apiPost({sheet:'employees', mode:'replace', data:state.employees}); }
+  catch(e){ showToast('تعذّر حفظ قائمة الموظفين — تحقق من الاتصال بالإنترنت'); }
+}
+async function saveTransactionAppend(tx){
+  try{ await apiPost({sheet:'transactions', mode:'append', row:tx}); }
+  catch(e){ showToast('تعذّر حفظ الحركة على الخادم — الحركة ظاهرة عندك الآن لكن لم تُحفظ، أعد المحاولة'); }
+}
+
+// ===== balance computation =====
+function balanceFor(workerId){
+  let received=0, delivered=0;
+  state.transactions.forEach(t=>{
+    if(t.workerId!==workerId) return;
+    if(t.type==='receive') received += Number(t.qty||0);
+    if(t.type==='deliver') delivered += Number(t.repaired||0)+Number(t.dismantled||0);
+  });
+  return received - delivered;
+}
+function todayTotals(){
+  const today = todayISO();
+  let received=0, repaired=0, dismantled=0;
+  state.transactions.forEach(t=>{
+    if(t.date!==today) return;
+    if(t.type==='receive') received += Number(t.qty||0);
+    if(t.type==='deliver'){ repaired += Number(t.repaired||0); dismantled += Number(t.dismantled||0); }
+  });
+  return {received, repaired, dismantled};
+}
+
+// ===== render root =====
+function renderUserBadge(){
+  const host = document.getElementById('userBadgeHost');
+  if(!state.currentUser){ host.innerHTML=''; return; }
+  const u = state.currentUser;
+  const initial = u.name.trim()[0] || '؟';
+  host.innerHTML = `
+    <button id="refreshBtn" class="btn btn-ghost" style="padding:7px 12px;font-size:12.5px;color:var(--paper-light);border-color:#4a453b;">⟳ تحديث</button>
+    <div class="user-badge">
+      <div class="av">${initial}</div>
+      <div class="u">${u.name}<small>${ROLE_LABEL[u.role]}</small></div>
+      <button id="switchUserBtn">تبديل</button>
+    </div>`;
+  document.getElementById('switchUserBtn').addEventListener('click', ()=>{
+    state.currentUser = null;
+    openLogin();
+  });
+  document.getElementById('refreshBtn').addEventListener('click', async ()=>{
+    showToast('جارِ التحديث من قاعدة البيانات…');
+    await loadAll();
+    render();
+    showToast('تم تحديث البيانات');
+  });
+}
+function openLogin(){
+  showUserListStep();
+  document.getElementById('loginOverlay').style.display='flex';
+}
+function showUserListStep(){
+  const card = document.querySelector('#loginOverlay .login-card');
+  card.innerHTML = `
+    <h2>من يُسجّل الآن؟</h2>
+    <div class="sub">اختر اسمك ثم أدخل رمزك السري — كل حركة تُنسب إليك بالاسم في السجل.</div>
+    <div class="user-list" id="userList"></div>
+    <div class="divider-or">أو</div>
+    <div class="field"><label>اسمي غير موجود — إضافة مستخدم جديد</label><input type="text" id="newUserName" placeholder="الاسم الكامل"></div>
+    <div class="field"><label>الصفة الوظيفية</label>
+      <select id="newUserRole">
+        ${ROLE_OPTIONS}
+      </select>
+    </div>
+    <div class="field"><label>رمز سري من 4 أرقام (تتذكّره لتسجيل الدخول لاحقاً)</label><input type="password" inputmode="numeric" maxlength="4" id="newUserPin" placeholder="••••"></div>
+    <button class="btn btn-primary" id="newUserAdd" style="width:100%;justify-content:center;">إضافتي وتسجيل الدخول</button>
+  `;
+  const list = document.getElementById('userList');
+  list.innerHTML = state.users.map(u=>`
+    <div class="user-pick" data-uid="${u.id}">
+      <span>${u.name}</span>
+      <span style="display:flex;align-items:center;gap:10px;">
+        <span class="r">${ROLE_LABEL[u.role]}</span>
+        <button data-del-login-user="${u.id}" style="background:transparent;border:none;color:var(--rust);font-size:16px;cursor:pointer;line-height:1;" title="حذف هذا الحساب">×</button>
+      </span>
+    </div>
+  `).join('') || '<div style="color:var(--steel);font-size:13px;">لا يوجد مستخدمون بعد — أضف نفسك بالأسفل</div>';
+  list.querySelectorAll('.user-pick').forEach(el=>el.addEventListener('click', (e)=>{
+    if(e.target.closest('[data-del-login-user]')) return;
+    showPinStep(state.users.find(x=>x.id===el.dataset.uid));
+  }));
+  list.querySelectorAll('[data-del-login-user]').forEach(btn=>btn.addEventListener('click', async (e)=>{
+    e.stopPropagation();
+    const u = state.users.find(x=>x.id===btn.dataset.delLoginUser);
+    if(!(await customConfirm(`حذف حساب "${u.name}"؟ إن كان حسابك المعطوب، احذفه ثم أضف نفسك من جديد بالأسفل برمز جديد.`))) return;
+    state.users = state.users.filter(x=>x.id!==u.id);
+    await saveUsers();
+    showUserListStep();
+  }));
+  document.getElementById('newUserAdd').addEventListener('click', async ()=>{
+    const name = document.getElementById('newUserName').value.trim();
+    const role = document.getElementById('newUserRole').value;
+    const pin = document.getElementById('newUserPin').value.trim();
+    if(!name){ showToast('اكتب اسمك أولاً'); return; }
+    if(!/^\d{4}$/.test(pin)){ showToast('الرمز السري يجب أن يكون 4 أرقام'); return; }
+    const u = {id:uid(), name, role, pin};
+    state.users.push(u);
+    await saveUsers();
+    state.currentUser = u;
+    document.getElementById('loginOverlay').style.display='none';
+    renderUserBadge(); render();
+  });
+}
+function showPinStep(user){
+  const card = document.querySelector('#loginOverlay .login-card');
+  card.innerHTML = `
+    <div class="pin-step">
+      <div class="who">${user.name}</div>
+      <div class="sub">${ROLE_LABEL[user.role]} — أدخل رمزك السري المكوّن من 4 أرقام</div>
+      <div class="pin-error" id="pinError"></div>
+      <input type="password" inputmode="numeric" maxlength="4" class="pin-input" id="pinEntry" autofocus>
+      <button class="btn btn-primary" id="pinConfirm" style="width:100%;justify-content:center;margin-bottom:8px;">دخول</button>
+      <button class="btn btn-ghost" id="pinBack" style="width:100%;justify-content:center;">هذا ليس أنا — رجوع</button>
+    </div>
+  `;
+  const entry = document.getElementById('pinEntry');
+  entry.focus();
+  const tryLogin = ()=>{
+    if(entry.value.trim() === user.pin){
+      state.currentUser = user;
+      document.getElementById('loginOverlay').style.display='none';
+      renderUserBadge(); render();
+    }else{
+      document.getElementById('pinError').textContent = 'الرمز السري غير صحيح — حاول مرة أخرى';
+      entry.value=''; entry.focus();
+    }
+  };
+  document.getElementById('pinConfirm').addEventListener('click', tryLogin);
+  entry.addEventListener('keydown', e=>{ if(e.key==='Enter') tryLogin(); });
+  document.getElementById('pinBack').addEventListener('click', showUserListStep);
+}
+
+function renderTabs(){
+  const nav = document.getElementById('tabs');
+  nav.innerHTML = TABS.map(t=>`<button data-tab="${t.id}" class="${state.activeTab===t.id?'active':''}">${t.label}</button>`).join('');
+  nav.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{ state.activeTab=b.dataset.tab; render(); }));
+}
+
+function render(){
+  renderTabs();
+  const host = document.getElementById('panelHost');
+  if(state.loading){ host.innerHTML = '<div class="loading">جارِ تحميل البيانات…</div>'; return; }
+  if(state.activeTab==='dashboard') return renderDashboard(host);
+  if(state.activeTab==='receive') return renderReceive(host);
+  if(state.activeTab==='deliver') return renderDeliver(host);
+  if(state.activeTab==='reports') return renderReports(host);
+  if(state.activeTab==='log') return renderLog(host);
+  if(state.activeTab==='employees') return renderEmployees(host);
+  if(state.activeTab==='users') return renderUsers(host);
+}
+
+// ===== Dashboard =====
+function renderDashboard(host){
+  const t = todayTotals();
+  const cards = state.employees.map(e=>{
+    const bal = balanceFor(e.id);
+    const cls = bal>0 ? 'pos' : 'zero';
+    return `<div class="ticket">
+      <div class="name">${e.name}</div>
+      <div class="row"><span>مستلم اليوم</span><b>${sumToday(e.id,'received')}</b></div>
+      <div class="row"><span>مصلح مسلَّم</span><b>${sumToday(e.id,'repaired')}</b></div>
+      <div class="row"><span>مفرط مسلَّم</span><b>${sumToday(e.id,'dismantled')}</b></div>
+      <div class="balance">
+        <div><div class="lbl">الباقي بحوزته</div><div class="val ${cls}">${bal}</div></div>
+      </div>
+    </div>`;
+  }).join('');
+  host.innerHTML = `
+    <h2>لوحة المتابعة</h2>
+    <div class="sub">نظرة لحظية على رصيد كل عامل — مطابقة لسند "تسليم/طبالي غير مصلحة" الورقي لكن محسوبة تلقائياً.</div>
+    <div class="totals-strip">
+      <div class="stat"><div class="n">${t.received}</div><div class="l">مستلم اليوم (غير مصلح)</div></div>
+      <div class="stat"><div class="n">${t.repaired}</div><div class="l">مصلح اليوم</div></div>
+      <div class="stat"><div class="n">${t.dismantled}</div><div class="l">تفريط اليوم</div></div>
+      <div class="stat"><div class="n">${t.repaired+t.dismantled}</div><div class="l">إجمالي مسلَّم اليوم</div></div>
+    </div>
+    <div class="grid">${cards || '<div class="empty">لا يوجد موظفون بعد — أضفهم من تبويب «الموظفون»</div>'}</div>
+  `;
+}
+function sumToday(workerId, field){
+  const today = todayISO();
+  let s=0;
+  state.transactions.forEach(t=>{
+    if(t.workerId!==workerId || t.date!==today) return;
+    if(field==='received' && t.type==='receive') s+=Number(t.qty||0);
+    if(field==='repaired' && t.type==='deliver') s+=Number(t.repaired||0);
+    if(field==='dismantled' && t.type==='deliver') s+=Number(t.dismantled||0);
+  });
+  return s;
+}
+
+// ===== Receive tab =====
+function renderReceive(host){
+  const opts = state.employees.map(e=>`<option value="${e.id}">${e.name}</option>`).join('');
+  host.innerHTML = `
+    <h2>تسجيل استلام دفعة غير مصلحة</h2>
+    <div class="sub">كل دفعة تصل للعامل تُسجَّل كسطر منفصل — النظام يجمعها تلقائياً بدل معادلة الجمع اليدوي.</div>
+    <div class="field-row">
+      <div class="field"><label>العامل</label><select id="rcWorker">${opts || '<option value="">أضف عاملاً أولاً</option>'}</select></div>
+      <div class="field"><label>عدد الطبالي غير المصلحة</label><input type="number" min="1" id="rcQty" placeholder="مثال: 18"></div>
+    </div>
+    <div class="field"><label>ملاحظة (اختياري)</label><input type="text" id="rcNote" placeholder="مثال: دفعة صباحية"></div>
+    <button class="btn btn-primary" id="rcSubmit">تسجيل الاستلام</button>
+  `;
+  document.getElementById('rcSubmit').addEventListener('click', async ()=>{
+    const workerId = document.getElementById('rcWorker').value;
+    const qty = Number(document.getElementById('rcQty').value);
+    const note = document.getElementById('rcNote').value.trim();
+    if(!workerId){ showToast('اختر عاملاً أولاً'); return; }
+    if(!qty || qty<=0){ showToast('أدخل عدداً صحيحاً أكبر من صفر'); return; }
+    const worker = state.employees.find(e=>e.id===workerId);
+    const tx = {
+      id:uid(), type:'receive', workerId, workerName:worker.name, qty, repaired:0, dismantled:0, note,
+      date:todayISO(), ts:Date.now(), actor:state.currentUser.name, actorRole:ROLE_LABEL[state.currentUser.role]
+    };
+    state.transactions.push(tx);
+    await saveTransactionAppend(tx);
+    showToast(`تم تسجيل استلام ${qty} طبلية لـ${worker.name}`);
+    document.getElementById('rcQty').value=''; document.getElementById('rcNote').value='';
+    render();
+  });
+}
+
+// ===== Deliver tab =====
+function renderDeliver(host){
+  const opts = state.employees.map(e=>`<option value="${e.id}">${e.name} — الباقي حالياً: ${balanceFor(e.id)}</option>`).join('');
+  host.innerHTML = `
+    <h2>تسليم طبالي مصلحة / مفرطة</h2>
+    <div class="sub">يُخصم تلقائياً من رصيد العامل غير المصلح.</div>
+    <div id="dvWarn" class="warn-box"></div>
+    <div class="field"><label>العامل</label><select id="dvWorker">${opts || '<option value="">أضف عاملاً أولاً</option>'}</select></div>
+    <div class="field-row">
+      <div class="field"><label>عدد المصلح</label><input type="number" min="0" id="dvRepaired" value="0"></div>
+      <div class="field"><label>عدد المفرط</label><input type="number" min="0" id="dvDismantled" value="0"></div>
+    </div>
+    <div class="field"><label>ملاحظة (اختياري)</label><input type="text" id="dvNote"></div>
+    <button class="btn btn-primary" id="dvSubmit">تسجيل التسليم</button>
+  `;
+  const checkWarn = ()=>{
+    const workerId = document.getElementById('dvWorker').value;
+    const rep = Number(document.getElementById('dvRepaired').value||0);
+    const dis = Number(document.getElementById('dvDismantled').value||0);
+    const bal = balanceFor(workerId);
+    const box = document.getElementById('dvWarn');
+    if(workerId && (rep+dis) > bal){
+      box.textContent = `تنبيه: المجموع المُدخل (${rep+dis}) أكبر من الرصيد المتاح لدى هذا العامل (${bal}). تحقق من الأرقام قبل الحفظ.`;
+      box.classList.add('show');
+    } else box.classList.remove('show');
+  };
+  ['dvWorker','dvRepaired','dvDismantled'].forEach(id=>document.getElementById(id).addEventListener('input',checkWarn));
+  document.getElementById('dvSubmit').addEventListener('click', async ()=>{
+    const workerId = document.getElementById('dvWorker').value;
+    const rep = Number(document.getElementById('dvRepaired').value||0);
+    const dis = Number(document.getElementById('dvDismantled').value||0);
+    const note = document.getElementById('dvNote').value.trim();
+    if(!workerId){ showToast('اختر عاملاً أولاً'); return; }
+    if(rep<=0 && dis<=0){ showToast('أدخل عدد المصلح أو المفرط'); return; }
+    const worker = state.employees.find(e=>e.id===workerId);
+    const tx = {
+      id:uid(), type:'deliver', workerId, workerName:worker.name, qty:0, repaired:rep, dismantled:dis, note,
+      date:todayISO(), ts:Date.now(), actor:state.currentUser.name, actorRole:ROLE_LABEL[state.currentUser.role]
+    };
+    state.transactions.push(tx);
+    await saveTransactionAppend(tx);
+    showToast(`تم تسجيل تسليم ${worker.name}: مصلح ${rep} / مفرط ${dis}`);
+    render();
+  });
+}
+
+// ===== Reports =====
+function renderReports(host){
+  const dates = Array.from(new Set(state.transactions.map(t=>t.date))).sort().reverse();
+  const selDate = host.dataset.selDate || dates[0] || todayISO();
+  const dateOpts = (dates.length?dates:[todayISO()]).map(d=>`<option value="${d}" ${d===selDate?'selected':''}>${d}</option>`).join('');
+  const dayTx = state.transactions.filter(t=>t.date===selDate);
+  const received = dayTx.filter(t=>t.type==='receive').reduce((s,t)=>s+Number(t.qty||0),0);
+  const repaired = dayTx.filter(t=>t.type==='deliver').reduce((s,t)=>s+Number(t.repaired||0),0);
+  const dismantled = dayTx.filter(t=>t.type==='deliver').reduce((s,t)=>s+Number(t.dismantled||0),0);
+  const rows = state.employees.map(e=>{
+    const r = dayTx.filter(t=>t.workerId===e.id && t.type==='receive').reduce((s,t)=>s+Number(t.qty||0),0);
+    const rp = dayTx.filter(t=>t.workerId===e.id && t.type==='deliver').reduce((s,t)=>s+Number(t.repaired||0),0);
+    const dm = dayTx.filter(t=>t.workerId===e.id && t.type==='deliver').reduce((s,t)=>s+Number(t.dismantled||0),0);
+    if(r===0 && rp===0 && dm===0) return '';
+    return `<tr><td>${e.name}</td><td>${r}</td><td>${rp}</td><td>${dm}</td><td>${rp+dm}</td></tr>`;
+  }).join('');
+  host.innerHTML = `
+    <h2>التقرير اليومي</h2>
+    <div class="sub">نسخة إلكترونية من "جدول الإنتاج الطبالي اليومي" — تُبنى تلقائياً من الحركات المسجّلة.</div>
+    <div class="field" style="max-width:220px;"><label>اختر التاريخ</label><select id="repDate">${dateOpts}</select></div>
+    <div class="totals-strip">
+      <div class="stat"><div class="n">${received}</div><div class="l">إجمالي المستلم</div></div>
+      <div class="stat"><div class="n">${repaired}</div><div class="l">إجمالي المصلح</div></div>
+      <div class="stat"><div class="n">${dismantled}</div><div class="l">إجمالي التفريط</div></div>
+    </div>
+    <table>
+      <thead><tr><th>اسم الموظف</th><th>عدد المستلم</th><th>عدد المصلح</th><th>عدد التفريط</th><th>الإجمالي المسلَّم</th></tr></thead>
+      <tbody>${rows || '<tr><td colspan="5" class="empty">لا توجد حركات في هذا التاريخ</td></tr>'}</tbody>
+    </table>
+  `;
+  document.getElementById('repDate').addEventListener('change', e=>{ host.dataset.selDate=e.target.value; renderReports(host); });
+}
+
+// ===== Log =====
+function renderLog(host){
+  const rows = [...state.transactions].sort((a,b)=>b.ts-a.ts).map(t=>{
+    const who = `${t.actor||'—'}${t.actorRole?` <span style="color:var(--steel);font-weight:400;">— ${t.actorRole}</span>`:''}`;
+    if(t.type==='receive'){
+      return `<tr><td>${fmtDateTime(t.ts)}</td><td><span class="tag tag-in">استلام</span></td><td>${t.workerName}</td><td>${t.qty} غير مصلح</td><td>${who}</td></tr>`;
+    }
+    return `<tr><td>${fmtDateTime(t.ts)}</td><td><span class="tag tag-out">تسليم</span></td><td>${t.workerName}</td><td>مصلح ${t.repaired} / مفرط ${t.dismantled}</td><td>${who}</td></tr>`;
+  }).join('');
+  host.innerHTML = `
+    <h2>سجل الأنشطة</h2>
+    <div class="sub">كل حركة موثّقة بالوقت واسم من سجّلها فعلياً — بديل التوقيعات الورقية.</div>
+    <table>
+      <thead><tr><th>الوقت</th><th>النوع</th><th>العامل</th><th>التفاصيل</th><th>سجّلها</th></tr></thead>
+      <tbody>${rows || '<tr><td colspan="5" class="empty">لا توجد حركات مسجّلة بعد</td></tr>'}</tbody>
+    </table>
+  `;
+}
+
+// ===== Users (login accounts) =====
+function renderUsers(host){
+  const rows = state.users.map(u=>{
+    const count = state.transactions.filter(t=>t.actor===u.name).length;
+    return `<tr><td>${u.name}</td><td>${ROLE_LABEL[u.role]}</td><td>${count}</td>
+    <td><button class="btn btn-danger" data-deluser="${u.id}" style="padding:6px 12px;font-size:12.5px;">حذف</button></td></tr>`;
+  }).join('');
+  host.innerHTML = `
+    <h2>المستخدمون المسموح لهم بتسجيل الدخول</h2>
+    <div class="sub">هذه القائمة تظهر في شاشة "من يُسجّل الآن؟" — أضف كل مشرف أو موظف يستخدم النظام هنا.</div>
+    <div class="field-row" style="align-items:flex-end;">
+      <div class="field"><label>الاسم الكامل</label><input type="text" id="usrName" placeholder="مثال: محمد بشتيوان"></div>
+      <div class="field"><label>الصفة</label>
+        <select id="usrRole">
+          ${ROLE_OPTIONS}
+        </select>
+      </div>
+      <div class="field"><label>رمز سري (4 أرقام)</label><input type="password" inputmode="numeric" maxlength="4" id="usrPin" placeholder="••••"></div>
+    </div>
+    <button class="btn btn-primary" id="usrAdd">إضافة مستخدم</button>
+    <table style="margin-top:18px;">
+      <thead><tr><th>الاسم</th><th>الصفة</th><th>عدد الحركات المسجَّلة</th><th></th></tr></thead>
+      <tbody>${rows || '<tr><td colspan="4" class="empty">لا يوجد مستخدمون بعد</td></tr>'}</tbody>
+    </table>
+  `;
+  document.getElementById('usrAdd').addEventListener('click', async ()=>{
+    const name = document.getElementById('usrName').value.trim();
+    const role = document.getElementById('usrRole').value;
+    const pin = document.getElementById('usrPin').value.trim();
+    if(!name){ showToast('اكتب الاسم أولاً'); return; }
+    if(!/^\d{4}$/.test(pin)){ showToast('الرمز السري يجب أن يكون 4 أرقام'); return; }
+    state.users.push({id:uid(), name, role, pin});
+    await saveUsers();
+    showToast(`تمت إضافة ${name}`);
+    render();
+  });
+  host.querySelectorAll('[data-deluser]').forEach(b=>b.addEventListener('click', async ()=>{
+    const id = b.dataset.deluser;
+    if(state.currentUser && state.currentUser.id===id){ showToast('لا يمكن حذف المستخدم المسجَّل دخوله حالياً'); return; }
+    if(!(await customConfirm('حذف هذا المستخدم من قائمة الدخول؟ الحركات السابقة باسمه تبقى في السجل.'))) return;
+    state.users = state.users.filter(u=>u.id!==id);
+    await saveUsers();
+    render();
+  }));
+}
+
+// ===== Employees =====
+function renderEmployees(host){
+  const rows = state.employees.map(e=>`
+    <tr><td>${e.name}</td><td>${balanceFor(e.id)}</td>
+    <td><button class="btn btn-danger" data-del="${e.id}" style="padding:6px 12px;font-size:12.5px;">حذف</button></td></tr>
+  `).join('');
+  host.innerHTML = `
+    <h2>إدارة الموظفين</h2>
+    <div class="sub">قائمة عمال التصليح المستخدَمة في نماذج الاستلام والتسليم.</div>
+    <div class="field-row" style="align-items:flex-end;">
+      <div class="field"><label>اسم العامل الجديد</label><input type="text" id="empName" placeholder="اكتب الاسم الكامل"></div>
+      <button class="btn btn-primary" id="empAdd" style="height:44px;">إضافة عامل</button>
+    </div>
+    <table style="margin-top:14px;">
+      <thead><tr><th>الاسم</th><th>الرصيد الحالي</th><th></th></tr></thead>
+      <tbody>${rows || '<tr><td colspan="3" class="empty">لا يوجد عمال بعد</td></tr>'}</tbody>
+    </table>
+  `;
+  document.getElementById('empAdd').addEventListener('click', async ()=>{
+    const name = document.getElementById('empName').value.trim();
+    if(!name){ showToast('اكتب اسم العامل'); return; }
+    state.employees.push({id:uid(), name});
+    await saveEmployees();
+    showToast(`تمت إضافة ${name}`);
+    render();
+  });
+  host.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click', async ()=>{
+    const id = b.dataset.del;
+    const hasTx = state.transactions.some(t=>t.workerId===id);
+    if(hasTx && !(await customConfirm('لهذا العامل حركات مسجّلة — سيبقى اسمه في السجل التاريخي حتى بعد الحذف من القائمة. متابعة؟'))) return;
+    state.employees = state.employees.filter(e=>e.id!==id);
+    await saveEmployees();
+    render();
+  }));
+}
+
+(async function init(){
+  await loadAll();
+  renderUserBadge();
+  if(!state.currentUser) openLogin();
+  render();
+})();
+</script>
+</body>
+</html>
