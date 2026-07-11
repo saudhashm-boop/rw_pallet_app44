@@ -403,6 +403,17 @@ function openEditTx(txId){
   });
 }
 
+async function deleteTx(txId){
+  const tx = state.transactions.find(t=>t.id===txId);
+  if(!tx) return;
+  const detail = tx.type==='receive' ? `${tx.qty} غير مصلح` : `مصلح ${tx.repaired} / مفرط ${tx.dismantled}`;
+  if(!(await customConfirm(`حذف حركة "${tx.workerName}" (${detail}) نهائياً؟ هذا الإجراء لا يمكن التراجع عنه.`))) return;
+  state.transactions = state.transactions.filter(t=>t.id!==txId);
+  await saveTransactionsReplace();
+  showToast('تم حذف الحركة');
+  render();
+}
+
 // ===== balance computation =====
 function balanceFor(workerId){
   let received=0, delivered=0;
@@ -424,6 +435,29 @@ function todayTotals(){
   return {received, repaired, dismantled};
 }
 
+// ===== الجلسة المحفوظة على هذا الجهاز (تذكّر تسجيل الدخول) =====
+// يُخزَّن فقط معرّف المستخدم (id) وتاريخ الانتهاء — وليس الرمز السري نفسه — بمتصفح هذا الجهاز تحديداً.
+const SESSION_KEY = 'rwp_session_v1';
+const SESSION_DAYS = 30;
+function saveSession(userId){
+  try{
+    const expiresAt = Date.now() + SESSION_DAYS*24*60*60*1000;
+    localStorage.setItem(SESSION_KEY, JSON.stringify({userId, expiresAt}));
+  }catch(e){ /* المتصفح قد يمنع التخزين المحلي (وضع التصفح الخاص مثلاً) — لا مشكلة، فقط لن يتذكّر المستخدم */ }
+}
+function loadSession(){
+  try{
+    const raw = localStorage.getItem(SESSION_KEY);
+    if(!raw) return null;
+    const s = JSON.parse(raw);
+    if(!s.userId || !s.expiresAt || Date.now() > s.expiresAt) return null;
+    return s;
+  }catch(e){ return null; }
+}
+function clearSession(){
+  try{ localStorage.removeItem(SESSION_KEY); }catch(e){}
+}
+
 // ===== render root =====
 function renderUserBadge(){
   const host = document.getElementById('userBadgeHost');
@@ -438,6 +472,7 @@ function renderUserBadge(){
       <button id="switchUserBtn">تبديل</button>
     </div>`;
   document.getElementById('switchUserBtn').addEventListener('click', ()=>{
+    clearSession(); // تبديل المستخدم يعني ننسى هذا الجهاز، ونطلب رمزاً سرياً من جديد
     state.currentUser = null;
     openLogin();
   });
@@ -503,6 +538,7 @@ function showUserListStep(){
     state.users.push(u);
     await saveUsers();
     state.currentUser = u;
+    saveSession(u.id); // يتذكّر هذا الجهاز تلقائياً (يقدر يبدّل لاحقاً من زر «تبديل»)
     document.getElementById('loginOverlay').style.display='none';
     renderUserBadge(); render();
   });
@@ -515,6 +551,10 @@ function showPinStep(user){
       <div class="sub">${ROLE_LABEL[user.role]} — أدخل رمزك السري المكوّن من 4 أرقام</div>
       <div class="pin-error" id="pinError"></div>
       <input type="password" inputmode="numeric" maxlength="4" class="pin-input" id="pinEntry" autofocus>
+      <label style="display:flex;align-items:center;gap:8px;justify-content:center;font-size:13px;color:var(--steel);margin-bottom:16px;cursor:pointer;">
+        <input type="checkbox" id="rememberMe" checked style="width:16px;height:16px;">
+        تذكّرني على هذا الجهاز لمدة 30 يوماً
+      </label>
       <button class="btn btn-primary" id="pinConfirm" style="width:100%;justify-content:center;margin-bottom:8px;">دخول</button>
       <button class="btn btn-ghost" id="pinBack" style="width:100%;justify-content:center;">هذا ليس أنا — رجوع</button>
     </div>
@@ -524,6 +564,8 @@ function showPinStep(user){
   const tryLogin = ()=>{
     if(entry.value.trim() === user.pin){
       state.currentUser = user;
+      if(document.getElementById('rememberMe').checked) saveSession(user.id);
+      else clearSession();
       document.getElementById('loginOverlay').style.display='none';
       renderUserBadge(); render();
     }else{
@@ -729,10 +771,11 @@ function renderLog(host){
   const rows = [...state.transactions].sort((a,b)=>b.ts-a.ts).map(t=>{
     const who = `${t.actor||'—'}${t.actorRole?` <span style="color:var(--steel);font-weight:400;">— ${t.actorRole}</span>`:''}`;
     const editBtn = IS_PUBLIC_VIEW ? '' : `<button class="btn btn-ghost" data-edit-tx="${t.id}" style="padding:5px 12px;font-size:12px;">تعديل</button>`;
+    const delBtn = IS_PUBLIC_VIEW ? '' : `<button class="btn btn-danger" data-del-tx="${t.id}" style="padding:5px 12px;font-size:12px;">حذف</button>`;
     if(t.type==='receive'){
-      return `<tr><td>${fmtDateTime(t.ts)}</td><td><span class="tag tag-in">استلام</span></td><td>${t.workerName}</td><td>${t.qty} غير مصلح</td><td>${who}</td><td>${editBtn}</td></tr>`;
+      return `<tr><td>${fmtDateTime(t.ts)}</td><td><span class="tag tag-in">استلام</span></td><td>${t.workerName}</td><td>${t.qty} غير مصلح</td><td>${who}</td><td style="display:flex;gap:6px;">${editBtn}${delBtn}</td></tr>`;
     }
-    return `<tr><td>${fmtDateTime(t.ts)}</td><td><span class="tag tag-out">تسليم</span></td><td>${t.workerName}</td><td>مصلح ${t.repaired} / مفرط ${t.dismantled}</td><td>${who}</td><td>${editBtn}</td></tr>`;
+    return `<tr><td>${fmtDateTime(t.ts)}</td><td><span class="tag tag-out">تسليم</span></td><td>${t.workerName}</td><td>مصلح ${t.repaired} / مفرط ${t.dismantled}</td><td>${who}</td><td style="display:flex;gap:6px;">${editBtn}${delBtn}</td></tr>`;
   }).join('');
   host.innerHTML = `
     <h2>سجل الأنشطة</h2>
@@ -742,7 +785,10 @@ function renderLog(host){
       <tbody>${rows || '<tr><td colspan="6" class="empty">لا توجد حركات مسجّلة بعد</td></tr>'}</tbody>
     </table>
   `;
-  if(!IS_PUBLIC_VIEW) host.querySelectorAll('[data-edit-tx]').forEach(b=>b.addEventListener('click', ()=>openEditTx(b.dataset.editTx)));
+  if(!IS_PUBLIC_VIEW){
+    host.querySelectorAll('[data-edit-tx]').forEach(b=>b.addEventListener('click', ()=>openEditTx(b.dataset.editTx)));
+    host.querySelectorAll('[data-del-tx]').forEach(b=>b.addEventListener('click', ()=>deleteTx(b.dataset.delTx)));
+  }
 }
 
 function openEditEmployeeName(emp){
@@ -883,6 +929,17 @@ const PUBLIC_TABS = ['dashboard','reports','log'];
     renderPublicBadge();
     render();
     return;
+  }
+  // تحقق من وجود جلسة محفوظة على هذا الجهاز (تسجيل دخول تلقائي بدون طلب الرمز السري)
+  const session = loadSession();
+  if(session){
+    const u = state.users.find(x=>x.id===session.userId);
+    if(u){
+      state.currentUser = u;
+      saveSession(u.id); // تجديد الجلسة 30 يوماً إضافية من هذه الزيارة
+    }else{
+      clearSession(); // المستخدم محذوف من القائمة — الجلسة القديمة لم تعد صالحة
+    }
   }
   renderUserBadge();
   if(!state.currentUser) openLogin();
