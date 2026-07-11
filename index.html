@@ -299,7 +299,19 @@ function customConfirm(message){
     ov.querySelector('#cfNo').addEventListener('click', ()=>{ document.body.removeChild(ov); resolve(false); });
   });
 }
-function todayISO(){ return new Date().toISOString().slice(0,10); }
+// يوم العمل يبدأ الساعة 08:00 صباحاً بتوقيت أربيل (Asia/Baghdad) وليس منتصف الليل.
+// أي حركة تُسجَّل قبل الساعة 8 صباحاً تُحسب تلقائياً على يوم العمل السابق.
+function workDateISO(ts){
+  const baghdadStr = new Date(ts).toLocaleString('en-US', {timeZone:'Asia/Baghdad'});
+  const baghdad = new Date(baghdadStr);
+  const workDay = new Date(baghdad);
+  if(baghdad.getHours() < 8){ workDay.setDate(workDay.getDate()-1); }
+  const y = workDay.getFullYear();
+  const m = String(workDay.getMonth()+1).padStart(2,'0');
+  const d = String(workDay.getDate()).padStart(2,'0');
+  return `${y}-${m}-${d}`;
+}
+function todayISO(){ return workDateISO(Date.now()); }
 function fmtDateTime(ts){
   const d = new Date(Number(ts));
   return d.toLocaleDateString('ar-EG')+' '+d.toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'});
@@ -342,6 +354,53 @@ async function saveEmployees(){
 async function saveTransactionAppend(tx){
   try{ await apiPost({sheet:'transactions', mode:'append', row:tx}); }
   catch(e){ showToast('تعذّر حفظ الحركة على الخادم — الحركة ظاهرة عندك الآن لكن لم تُحفظ، أعد المحاولة'); }
+}
+async function saveTransactionsReplace(){
+  try{ await apiPost({sheet:'transactions', mode:'replace', data:state.transactions}); }
+  catch(e){ showToast('تعذّر حفظ التعديل على الخادم — تحقق من الاتصال بالإنترنت'); }
+}
+function openEditTx(txId){
+  const tx = state.transactions.find(t=>t.id===txId);
+  if(!tx) return;
+  const isReceive = tx.type==='receive';
+  const ov = document.createElement('div');
+  ov.className = 'overlay'; ov.style.zIndex = '200';
+  ov.innerHTML = `
+    <div class="login-card" style="max-width:380px;">
+      <h2 style="margin:0 0 4px;">تعديل حركة ${tx.workerName}</h2>
+      <div class="sub">${isReceive?'استلام غير مصلح':'تسليم مصلح / مفرط'} — ${fmtDateTime(tx.ts)}</div>
+      ${isReceive ? `
+        <div class="field"><label>عدد الطبالي غير المصلحة</label><input type="number" min="0" id="editQty" value="${tx.qty}"></div>
+      ` : `
+        <div class="field-row">
+          <div class="field"><label>عدد المصلح</label><input type="number" min="0" id="editRepaired" value="${tx.repaired}"></div>
+          <div class="field"><label>عدد المفرط</label><input type="number" min="0" id="editDismantled" value="${tx.dismantled}"></div>
+        </div>
+      `}
+      <div class="field"><label>ملاحظة</label><input type="text" id="editNote" value="${tx.note||''}"></div>
+      <div style="display:flex;gap:10px;margin-top:6px;">
+        <button class="btn btn-primary" id="editSave" style="flex:1;justify-content:center;">حفظ التعديل</button>
+        <button class="btn btn-ghost" id="editCancel" style="flex:1;justify-content:center;">إلغاء</button>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  document.getElementById('editCancel').addEventListener('click', ()=>document.body.removeChild(ov));
+  document.getElementById('editSave').addEventListener('click', async (e)=>{
+    const btn = e.currentTarget;
+    if(btn.disabled) return;
+    btn.disabled = true; btn.textContent = 'جارِ الحفظ…';
+    if(isReceive){
+      tx.qty = Number(document.getElementById('editQty').value||0);
+    }else{
+      tx.repaired = Number(document.getElementById('editRepaired').value||0);
+      tx.dismantled = Number(document.getElementById('editDismantled').value||0);
+    }
+    tx.note = document.getElementById('editNote').value.trim();
+    await saveTransactionsReplace();
+    document.body.removeChild(ov);
+    showToast('تم حفظ التعديل');
+    render();
+  });
 }
 
 // ===== balance computation =====
@@ -431,12 +490,15 @@ function showUserListStep(){
     await saveUsers();
     showUserListStep();
   }));
-  document.getElementById('newUserAdd').addEventListener('click', async ()=>{
+  document.getElementById('newUserAdd').addEventListener('click', async (e)=>{
     const name = document.getElementById('newUserName').value.trim();
     const role = document.getElementById('newUserRole').value;
     const pin = document.getElementById('newUserPin').value.trim();
     if(!name){ showToast('اكتب اسمك أولاً'); return; }
     if(!/^\d{4}$/.test(pin)){ showToast('الرمز السري يجب أن يكون 4 أرقام'); return; }
+    const btn = e.currentTarget;
+    if(btn.disabled) return;
+    btn.disabled = true; btn.textContent = 'جارِ الحفظ…';
     const u = {id:uid(), name, role, pin};
     state.users.push(u);
     await saveUsers();
@@ -476,11 +538,13 @@ function showPinStep(user){
 
 function renderTabs(){
   const nav = document.getElementById('tabs');
-  nav.innerHTML = TABS.map(t=>`<button data-tab="${t.id}" class="${state.activeTab===t.id?'active':''}">${t.label}</button>`).join('');
+  const visibleTabs = IS_PUBLIC_VIEW ? TABS.filter(t=>PUBLIC_TABS.includes(t.id)) : TABS;
+  nav.innerHTML = visibleTabs.map(t=>`<button data-tab="${t.id}" class="${state.activeTab===t.id?'active':''}">${t.label}</button>`).join('');
   nav.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{ state.activeTab=b.dataset.tab; render(); }));
 }
 
 function render(){
+  if(IS_PUBLIC_VIEW && !PUBLIC_TABS.includes(state.activeTab)){ state.activeTab='dashboard'; }
   renderTabs();
   const host = document.getElementById('panelHost');
   if(state.loading){ host.innerHTML = '<div class="loading">جارِ تحميل البيانات…</div>'; return; }
@@ -546,12 +610,15 @@ function renderReceive(host){
     <div class="field"><label>ملاحظة (اختياري)</label><input type="text" id="rcNote" placeholder="مثال: دفعة صباحية"></div>
     <button class="btn btn-primary" id="rcSubmit">تسجيل الاستلام</button>
   `;
-  document.getElementById('rcSubmit').addEventListener('click', async ()=>{
+  document.getElementById('rcSubmit').addEventListener('click', async (e)=>{
     const workerId = document.getElementById('rcWorker').value;
     const qty = Number(document.getElementById('rcQty').value);
     const note = document.getElementById('rcNote').value.trim();
     if(!workerId){ showToast('اختر عاملاً أولاً'); return; }
     if(!qty || qty<=0){ showToast('أدخل عدداً صحيحاً أكبر من صفر'); return; }
+    const btn = e.currentTarget;
+    if(btn.disabled) return; // تفادي الضغط المزدوج
+    btn.disabled = true; btn.textContent = 'جارِ الحفظ…';
     const worker = state.employees.find(e=>e.id===workerId);
     const tx = {
       id:uid(), type:'receive', workerId, workerName:worker.name, qty, repaired:0, dismantled:0, note,
@@ -560,8 +627,7 @@ function renderReceive(host){
     state.transactions.push(tx);
     await saveTransactionAppend(tx);
     showToast(`تم تسجيل استلام ${qty} طبلية لـ${worker.name}`);
-    document.getElementById('rcQty').value=''; document.getElementById('rcNote').value='';
-    render();
+    render(); // يعيد بناء الشاشة فيُنشئ الزر من جديد فعّالاً تلقائياً
   });
 }
 
@@ -592,13 +658,16 @@ function renderDeliver(host){
     } else box.classList.remove('show');
   };
   ['dvWorker','dvRepaired','dvDismantled'].forEach(id=>document.getElementById(id).addEventListener('input',checkWarn));
-  document.getElementById('dvSubmit').addEventListener('click', async ()=>{
+  document.getElementById('dvSubmit').addEventListener('click', async (e)=>{
     const workerId = document.getElementById('dvWorker').value;
     const rep = Number(document.getElementById('dvRepaired').value||0);
     const dis = Number(document.getElementById('dvDismantled').value||0);
     const note = document.getElementById('dvNote').value.trim();
     if(!workerId){ showToast('اختر عاملاً أولاً'); return; }
     if(rep<=0 && dis<=0){ showToast('أدخل عدد المصلح أو المفرط'); return; }
+    const btn = e.currentTarget;
+    if(btn.disabled) return;
+    btn.disabled = true; btn.textContent = 'جارِ الحفظ…';
     const worker = state.employees.find(e=>e.id===workerId);
     const tx = {
       id:uid(), type:'deliver', workerId, workerName:worker.name, qty:0, repaired:rep, dismantled:dis, note,
@@ -612,6 +681,15 @@ function renderDeliver(host){
 }
 
 // ===== Reports =====
+function balanceAsOf(workerId, date){
+  let received=0, delivered=0;
+  state.transactions.forEach(t=>{
+    if(t.workerId!==workerId || t.date>date) return;
+    if(t.type==='receive') received += Number(t.qty||0);
+    if(t.type==='deliver') delivered += Number(t.repaired||0)+Number(t.dismantled||0);
+  });
+  return received - delivered;
+}
 function renderReports(host){
   const dates = Array.from(new Set(state.transactions.map(t=>t.date))).sort().reverse();
   const selDate = host.dataset.selDate || dates[0] || todayISO();
@@ -624,12 +702,14 @@ function renderReports(host){
     const r = dayTx.filter(t=>t.workerId===e.id && t.type==='receive').reduce((s,t)=>s+Number(t.qty||0),0);
     const rp = dayTx.filter(t=>t.workerId===e.id && t.type==='deliver').reduce((s,t)=>s+Number(t.repaired||0),0);
     const dm = dayTx.filter(t=>t.workerId===e.id && t.type==='deliver').reduce((s,t)=>s+Number(t.dismantled||0),0);
-    if(r===0 && rp===0 && dm===0) return '';
-    return `<tr><td>${e.name}</td><td>${r}</td><td>${rp}</td><td>${dm}</td><td>${rp+dm}</td></tr>`;
+    const bal = balanceAsOf(e.id, selDate);
+    if(r===0 && rp===0 && dm===0 && bal===0) return '';
+    const balCls = bal>0 ? 'style="color:var(--amber-dark);font-weight:800;"' : '';
+    return `<tr><td>${e.name}</td><td>${r}</td><td>${rp}</td><td>${dm}</td><td>${rp+dm}</td><td ${balCls}>${bal}</td></tr>`;
   }).join('');
   host.innerHTML = `
     <h2>التقرير اليومي</h2>
-    <div class="sub">نسخة إلكترونية من "جدول الإنتاج الطبالي اليومي" — تُبنى تلقائياً من الحركات المسجّلة.</div>
+    <div class="sub">نسخة إلكترونية من "جدول الإنتاج الطبالي اليومي" — تُبنى تلقائياً من الحركات المسجّلة. عمود «الباقي» يعني الطبالي غير المصلحة التي لم يُنجزها العامل بعد وتُرحَّل لليوم القادم.</div>
     <div class="field" style="max-width:220px;"><label>اختر التاريخ</label><select id="repDate">${dateOpts}</select></div>
     <div class="totals-strip">
       <div class="stat"><div class="n">${received}</div><div class="l">إجمالي المستلم</div></div>
@@ -637,8 +717,8 @@ function renderReports(host){
       <div class="stat"><div class="n">${dismantled}</div><div class="l">إجمالي التفريط</div></div>
     </div>
     <table>
-      <thead><tr><th>اسم الموظف</th><th>عدد المستلم</th><th>عدد المصلح</th><th>عدد التفريط</th><th>الإجمالي المسلَّم</th></tr></thead>
-      <tbody>${rows || '<tr><td colspan="5" class="empty">لا توجد حركات في هذا التاريخ</td></tr>'}</tbody>
+      <thead><tr><th>اسم الموظف</th><th>عدد المستلم</th><th>عدد المصلح</th><th>عدد التفريط</th><th>الإجمالي المسلَّم</th><th>الباقي (يرحّل لليوم القادم)</th></tr></thead>
+      <tbody>${rows || '<tr><td colspan="6" class="empty">لا توجد حركات في هذا التاريخ</td></tr>'}</tbody>
     </table>
   `;
   document.getElementById('repDate').addEventListener('change', e=>{ host.dataset.selDate=e.target.value; renderReports(host); });
@@ -648,19 +728,49 @@ function renderReports(host){
 function renderLog(host){
   const rows = [...state.transactions].sort((a,b)=>b.ts-a.ts).map(t=>{
     const who = `${t.actor||'—'}${t.actorRole?` <span style="color:var(--steel);font-weight:400;">— ${t.actorRole}</span>`:''}`;
+    const editBtn = IS_PUBLIC_VIEW ? '' : `<button class="btn btn-ghost" data-edit-tx="${t.id}" style="padding:5px 12px;font-size:12px;">تعديل</button>`;
     if(t.type==='receive'){
-      return `<tr><td>${fmtDateTime(t.ts)}</td><td><span class="tag tag-in">استلام</span></td><td>${t.workerName}</td><td>${t.qty} غير مصلح</td><td>${who}</td></tr>`;
+      return `<tr><td>${fmtDateTime(t.ts)}</td><td><span class="tag tag-in">استلام</span></td><td>${t.workerName}</td><td>${t.qty} غير مصلح</td><td>${who}</td><td>${editBtn}</td></tr>`;
     }
-    return `<tr><td>${fmtDateTime(t.ts)}</td><td><span class="tag tag-out">تسليم</span></td><td>${t.workerName}</td><td>مصلح ${t.repaired} / مفرط ${t.dismantled}</td><td>${who}</td></tr>`;
+    return `<tr><td>${fmtDateTime(t.ts)}</td><td><span class="tag tag-out">تسليم</span></td><td>${t.workerName}</td><td>مصلح ${t.repaired} / مفرط ${t.dismantled}</td><td>${who}</td><td>${editBtn}</td></tr>`;
   }).join('');
   host.innerHTML = `
     <h2>سجل الأنشطة</h2>
-    <div class="sub">كل حركة موثّقة بالوقت واسم من سجّلها فعلياً — بديل التوقيعات الورقية.</div>
+    <div class="sub">${IS_PUBLIC_VIEW ? 'وضع العرض العام — للاطلاع فقط.' : 'كل حركة موثّقة بالوقت واسم من سجّلها فعلياً — بديل التوقيعات الورقية. يمكن تعديل أي حركة بها خطأ من زر «تعديل».'}</div>
     <table>
-      <thead><tr><th>الوقت</th><th>النوع</th><th>العامل</th><th>التفاصيل</th><th>سجّلها</th></tr></thead>
-      <tbody>${rows || '<tr><td colspan="5" class="empty">لا توجد حركات مسجّلة بعد</td></tr>'}</tbody>
+      <thead><tr><th>الوقت</th><th>النوع</th><th>العامل</th><th>التفاصيل</th><th>سجّلها</th><th></th></tr></thead>
+      <tbody>${rows || '<tr><td colspan="6" class="empty">لا توجد حركات مسجّلة بعد</td></tr>'}</tbody>
     </table>
   `;
+  if(!IS_PUBLIC_VIEW) host.querySelectorAll('[data-edit-tx]').forEach(b=>b.addEventListener('click', ()=>openEditTx(b.dataset.editTx)));
+}
+
+function openEditEmployeeName(emp){
+  const ov = document.createElement('div');
+  ov.className = 'overlay'; ov.style.zIndex = '200';
+  ov.innerHTML = `
+    <div class="login-card" style="max-width:360px;">
+      <h2 style="margin:0 0 4px;">تعديل اسم العامل</h2>
+      <div class="field"><label>الاسم</label><input type="text" id="editEmpName" value="${emp.name}"></div>
+      <div style="display:flex;gap:10px;margin-top:6px;">
+        <button class="btn btn-primary" id="editEmpSave" style="flex:1;justify-content:center;">حفظ</button>
+        <button class="btn btn-ghost" id="editEmpCancel" style="flex:1;justify-content:center;">إلغاء</button>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  document.getElementById('editEmpCancel').addEventListener('click', ()=>document.body.removeChild(ov));
+  document.getElementById('editEmpSave').addEventListener('click', async (e)=>{
+    const trimmed = document.getElementById('editEmpName').value.trim();
+    if(!trimmed){ showToast('الاسم لا يمكن أن يكون فارغاً'); return; }
+    const btn = e.currentTarget;
+    if(btn.disabled) return;
+    btn.disabled = true; btn.textContent = 'جارِ الحفظ…';
+    emp.name = trimmed;
+    await saveEmployees();
+    document.body.removeChild(ov);
+    showToast('تم تحديث الاسم');
+    render();
+  });
 }
 
 // ===== Users (login accounts) =====
@@ -688,12 +798,15 @@ function renderUsers(host){
       <tbody>${rows || '<tr><td colspan="4" class="empty">لا يوجد مستخدمون بعد</td></tr>'}</tbody>
     </table>
   `;
-  document.getElementById('usrAdd').addEventListener('click', async ()=>{
+  document.getElementById('usrAdd').addEventListener('click', async (e)=>{
     const name = document.getElementById('usrName').value.trim();
     const role = document.getElementById('usrRole').value;
     const pin = document.getElementById('usrPin').value.trim();
     if(!name){ showToast('اكتب الاسم أولاً'); return; }
     if(!/^\d{4}$/.test(pin)){ showToast('الرمز السري يجب أن يكون 4 أرقام'); return; }
+    const btn = e.currentTarget;
+    if(btn.disabled) return;
+    btn.disabled = true; btn.textContent = 'جارِ الحفظ…';
     state.users.push({id:uid(), name, role, pin});
     await saveUsers();
     showToast(`تمت إضافة ${name}`);
@@ -713,7 +826,10 @@ function renderUsers(host){
 function renderEmployees(host){
   const rows = state.employees.map(e=>`
     <tr><td>${e.name}</td><td>${balanceFor(e.id)}</td>
-    <td><button class="btn btn-danger" data-del="${e.id}" style="padding:6px 12px;font-size:12.5px;">حذف</button></td></tr>
+    <td style="display:flex;gap:8px;">
+      <button class="btn btn-ghost" data-edit="${e.id}" style="padding:6px 12px;font-size:12.5px;">تعديل</button>
+      <button class="btn btn-danger" data-del="${e.id}" style="padding:6px 12px;font-size:12.5px;">حذف</button>
+    </td></tr>
   `).join('');
   host.innerHTML = `
     <h2>إدارة الموظفين</h2>
@@ -727,14 +843,21 @@ function renderEmployees(host){
       <tbody>${rows || '<tr><td colspan="3" class="empty">لا يوجد عمال بعد</td></tr>'}</tbody>
     </table>
   `;
-  document.getElementById('empAdd').addEventListener('click', async ()=>{
+  document.getElementById('empAdd').addEventListener('click', async (e)=>{
     const name = document.getElementById('empName').value.trim();
     if(!name){ showToast('اكتب اسم العامل'); return; }
+    const btn = e.currentTarget;
+    if(btn.disabled) return;
+    btn.disabled = true; btn.textContent = 'جارِ الحفظ…';
     state.employees.push({id:uid(), name});
     await saveEmployees();
     showToast(`تمت إضافة ${name}`);
     render();
   });
+  host.querySelectorAll('[data-edit]').forEach(b=>b.addEventListener('click', ()=>{
+    const emp = state.employees.find(x=>x.id===b.dataset.edit);
+    openEditEmployeeName(emp);
+  }));
   host.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click', async ()=>{
     const id = b.dataset.del;
     const hasTx = state.transactions.some(t=>t.workerId===id);
@@ -745,12 +868,35 @@ function renderEmployees(host){
   }));
 }
 
+// ===== وضع العرض العام (رابط يحتوي ?public=1) =====
+// هذا وضع "للعرض فقط" — يعرض التفاصيل الكاملة بدون تسجيل دخول وبدون أي إمكانية تعديل أو تسجيل.
+const IS_PUBLIC_VIEW = new URLSearchParams(window.location.search).get('public') === '1';
+const PUBLIC_TABS = ['dashboard','reports','log'];
+
 (async function init(){
   await loadAll();
+  if(IS_PUBLIC_VIEW){
+    document.body.classList.add('public-view');
+    state.currentUser = {name:'زائر (عرض فقط)', role:'viewer'};
+    ROLE_LABEL.viewer = 'عرض فقط';
+    document.getElementById('loginOverlay').remove();
+    renderPublicBadge();
+    render();
+    return;
+  }
   renderUserBadge();
   if(!state.currentUser) openLogin();
   render();
 })();
+
+function renderPublicBadge(){
+  const host = document.getElementById('userBadgeHost');
+  host.innerHTML = `
+    <div class="user-badge" style="background:var(--rust);">
+      <div class="av" style="background:#fff;color:var(--rust);">👁</div>
+      <div class="u">وضع العرض العام<small>بدون تسجيل دخول — للاطلاع فقط</small></div>
+    </div>`;
+}
 </script>
 </body>
 </html>
