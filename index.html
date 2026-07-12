@@ -244,6 +244,7 @@ const TABS = [
   {id:'dashboard', label:'لوحة المتابعة'},
   {id:'receive', label:'تسجيل استلام غير مصلح'},
   {id:'deliver', label:'تسليم مصلح / مفرط'},
+  {id:'endshift', label:'تفريط نهاية الدوام'},
   {id:'reports', label:'التقارير اليومية'},
   {id:'log', label:'سجل الأنشطة'},
   {id:'employees', label:'الموظفون (عمال التصليح)'},
@@ -314,7 +315,27 @@ function workDateISO(ts){
 function todayISO(){ return workDateISO(Date.now()); }
 function fmtDateTime(ts){
   const d = new Date(Number(ts));
-  return d.toLocaleDateString('ar-EG')+' '+d.toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'});
+  return d.toLocaleDateString('ar-EG',{timeZone:'Asia/Baghdad'})+' '+d.toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Baghdad'});
+}
+// يحوّل قيمة "ts" القادمة من الشيت إلى رقم صحيح (Timestamp) بغض النظر عن شكلها:
+// رقم عادي، أو نص رقمي، أو تاريخ حوّله جوجل شيت تلقائياً لصيغة ISO.
+function parseTs(raw){
+  if(raw===null || raw===undefined || raw==='') return 0;
+  if(typeof raw==='number') return raw;
+  const s = String(raw).trim();
+  if(/^\d+$/.test(s)) return Number(s); // رقم صحيح مخزَّن كنص
+  const parsed = new Date(s).getTime();
+  return isNaN(parsed) ? 0 : parsed;
+}
+// يحوّل قيمة "date" القادمة من الشيت إلى نص تاريخ YYYY-MM-DD صحيح بتوقيت أربيل،
+// حتى لو جوجل شيت حوّلها لتاريخ ISO مزاح بسبب فرق المنطقة الزمنية.
+function parseWorkDate(raw){
+  if(!raw) return '';
+  const s = String(raw).trim();
+  if(/^\d{4}-\d{2}-\d{2}$/.test(s)) return s; // نص تاريخ بسيط وصحيح أصلاً
+  const asTs = new Date(s).getTime();
+  if(!isNaN(asTs)) return workDateISO(asTs); // أعد حسابه بتوقيت أربيل بدل الاعتماد على القيمة المشوَّهة
+  return s.slice(0,10);
 }
 function showToast(msg){
   const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
@@ -329,7 +350,7 @@ async function loadAll(){
     state.transactions = (data.transactions||[]).filter(t=>t.id).map(t=>({
       ...t,
       qty:Number(t.qty||0), repaired:Number(t.repaired||0), dismantled:Number(t.dismantled||0),
-      ts:Number(t.ts||0), date:String(t.date||'').slice(0,10)
+      ts:parseTs(t.ts), date:parseWorkDate(t.date)
     }));
   }catch(e){
     state.users=[]; state.employees=[]; state.transactions=[];
@@ -593,6 +614,7 @@ function render(){
   if(state.activeTab==='dashboard') return renderDashboard(host);
   if(state.activeTab==='receive') return renderReceive(host);
   if(state.activeTab==='deliver') return renderDeliver(host);
+  if(state.activeTab==='endshift') return renderEndShift(host);
   if(state.activeTab==='reports') return renderReports(host);
   if(state.activeTab==='log') return renderLog(host);
   if(state.activeTab==='employees') return renderEmployees(host);
@@ -720,6 +742,48 @@ function renderDeliver(host){
     showToast(`تم تسجيل تسليم ${worker.name}: مصلح ${rep} / مفرط ${dis}`);
     render();
   });
+}
+
+// ===== End of shift dismantle log =====
+function renderEndShift(host){
+  const rows = state.employees.map(e=>{
+    const bal = balanceFor(e.id);
+    const dismantledToday = sumToday(e.id,'dismantled');
+    return `<tr>
+      <td>${e.name}</td>
+      <td>${bal}</td>
+      <td>${dismantledToday}</td>
+      <td><input type="number" min="0" placeholder="0" data-esinput="${e.id}" style="width:90px;padding:8px;border:1.5px solid var(--steel-line);border-radius:8px;"></td>
+      <td><button class="btn btn-primary" data-essave="${e.id}" style="padding:7px 16px;font-size:13px;">حفظ</button></td>
+    </tr>`;
+  }).join('');
+  host.innerHTML = `
+    <h2>تفريط نهاية الدوام</h2>
+    <div class="sub">عند انتهاء الدوام (الساعة 5 عصراً)، سجّل هنا كم طلبية "فرّطها" كل عامل تصليح اليوم — يُخصم تلقائياً من رصيده مثل أي تسليم عادي.</div>
+    <table>
+      <thead><tr><th>العامل</th><th>الباقي بحوزته حالياً</th><th>مفرَّط اليوم (مسجَّل سابقاً)</th><th>عدد التفريط الجديد</th><th></th></tr></thead>
+      <tbody>${rows || '<tr><td colspan="5" class="empty">لا يوجد عمال بعد</td></tr>'}</tbody>
+    </table>
+  `;
+  host.querySelectorAll('[data-essave]').forEach(btn=>btn.addEventListener('click', async (e)=>{
+    const workerId = btn.dataset.essave;
+    const input = host.querySelector(`[data-esinput="${workerId}"]`);
+    const dis = Number(input.value||0);
+    if(dis<=0){ showToast('أدخل عدداً أكبر من صفر'); return; }
+    const worker = state.employees.find(x=>x.id===workerId);
+    const b = e.currentTarget;
+    if(b.disabled) return;
+    b.disabled = true; b.textContent = 'جارِ الحفظ…';
+    const tx = {
+      id:uid(), type:'deliver', workerId, workerName:worker.name, qty:0, repaired:0, dismantled:dis,
+      note:'تفريط نهاية الدوام',
+      date:todayISO(), ts:Date.now(), actor:state.currentUser.name, actorRole:ROLE_LABEL[state.currentUser.role]
+    };
+    state.transactions.push(tx);
+    await saveTransactionAppend(tx);
+    showToast(`تم تسجيل تفريط ${dis} لـ${worker.name}`);
+    render();
+  }));
 }
 
 // ===== Reports =====
